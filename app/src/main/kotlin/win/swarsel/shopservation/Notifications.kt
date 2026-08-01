@@ -101,4 +101,48 @@ object Notifications {
     fun clearAlarm(context: Context) {
         context.getSystemService(NotificationManager::class.java).cancel(ID_ALARM)
     }
+
+    fun fireReminder(context: Context, dues: List<Reminders.Due>) {
+        if (dues.isEmpty()) return
+        ensureChannels(context)
+        val first = dues.first()
+        val title = if (dues.size == 1) {
+            "⏳ ${Reminders.label(first)}"
+        } else {
+            "⏳ ${dues.size} auctions ending soon"
+        }
+        val text = buildString {
+            append(first.monitor.title.ifBlank { first.monitor.url })
+            if (first.monitor.price.isNotBlank()) append(" · ${first.monitor.price}")
+        }
+
+        val fullScreen = Intent(context, AlarmActivity::class.java)
+            .setAction(AlarmActivity.ACTION_REMINDER)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        val fullScreenPi = PendingIntent.getActivity(
+            context, 2, fullScreen,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val stopPi = PendingIntent.getService(
+            context, 3,
+            Intent(context, PollService::class.java).setAction(PollService.ACTION_STOP_ALARM),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+        val n = NotificationCompat.Builder(context, CHANNEL_ALARM)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setAutoCancel(false)
+            .setOngoing(true)
+            .setFullScreenIntent(fullScreenPi, true)
+            .setContentIntent(fullScreenPi)
+            .addAction(android.R.drawable.ic_delete, "Stop", stopPi)
+            .build()
+
+        context.getSystemService(NotificationManager::class.java).notify(ID_ALARM, n)
+        AlarmPlayer.startReminder(context)
+    }
 }

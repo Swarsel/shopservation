@@ -35,6 +35,11 @@ class MainActivity : Activity() {
     private lateinit var volumeInput: EditText
     private lateinit var vibrateBox: CheckBox
     private lateinit var soundView: TextView
+    private lateinit var reminderBox: CheckBox
+    private lateinit var reminderMinutesInput: EditText
+    private lateinit var reminderVolumeInput: EditText
+    private lateinit var reminderSoundView: TextView
+    private lateinit var previewLimitInput: EditText
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -106,10 +111,16 @@ class MainActivity : Activity() {
         })
         root.addView(row2)
 
-        root.addView(Button(this).apply {
+        val row3 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        row3.addView(Button(this).apply {
+            text = "Browse finds"
+            setOnClickListener { startActivity(Intent(this@MainActivity, FindsActivity::class.java)) }
+        })
+        row3.addView(Button(this).apply {
             text = "Ignore battery optimisation"
             setOnClickListener { requestBatteryExemption() }
         })
+        root.addView(row3)
 
         root.addView(header("Alarm sound"))
         soundView = TextView(this).apply {
@@ -182,7 +193,76 @@ class MainActivity : Activity() {
             }
         })
 
+        root.addView(header("Auction reminders"))
+        root.addView(TextView(this).apply {
+            text = "Alarms before a monitored auction ends. Uses its own sound and volume."
+            textSize = 12f
+            setPadding(0, 0, 0, 4)
+        })
+        reminderBox = CheckBox(this).apply {
+            text = "remind me before monitored auctions end"
+            isChecked = store.reminderEnabled
+            setOnCheckedChangeListener { _, v -> store.reminderEnabled = v }
+        }
+        root.addView(reminderBox)
+
+        root.addView(label("minutes before the end (comma-separated, e.g. 60, 10, 2)"))
+        reminderMinutesInput = input(store.reminderMinutes, "10").apply {
+            inputType = InputType.TYPE_CLASS_TEXT
+        }
+        root.addView(reminderMinutesInput)
+
+        reminderSoundView = TextView(this).apply {
+            textSize = 13f
+            setPadding(0, 8, 0, 4)
+        }
+        root.addView(reminderSoundView)
+
+        val rrow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        rrow.addView(Button(this).apply {
+            text = "Choose sound"
+            setOnClickListener { pickReminderSound() }
+        })
+        rrow.addView(Button(this).apply {
+            text = "Built-in siren"
+            setOnClickListener {
+                store.reminderSoundUri = ""
+                store.reminderSoundLabel = "Built-in siren"
+                renderSound()
+            }
+        })
+        root.addView(rrow)
+
+        root.addView(label("reminder volume (%)"))
+        reminderVolumeInput = input(store.reminderVolumePercent.toString(), "100").apply {
+            inputType = InputType.TYPE_CLASS_NUMBER
+        }
+        root.addView(reminderVolumeInput)
+
+        val rtrow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        rtrow.addView(Button(this).apply {
+            text = "Play test reminder"
+            setOnClickListener {
+                saveAlarmSettings()
+                AlarmPlayer.startReminder(this@MainActivity)
+                toast("Playing — press Stop when done")
+            }
+        })
+        rtrow.addView(Button(this).apply {
+            text = "Stop"
+            setOnClickListener {
+                AlarmPlayer.stop(this@MainActivity)
+                Notifications.clearAlarm(this@MainActivity)
+            }
+        })
+        root.addView(rtrow)
+
         root.addView(header("Alarm rules"))
+        root.addView(label("\"Would match\" scan limit (0 = all finds)"))
+        previewLimitInput = input(store.previewLimit.toString(), "5000").apply {
+            inputType = InputType.TYPE_CLASS_NUMBER
+        }
+        root.addView(previewLimitInput)
         root.addView(TextView(this).apply {
             text = "A find triggers the alarm when it matches any rule. " +
                 "With no rules, nothing ever alarms."
@@ -213,25 +293,38 @@ class MainActivity : Activity() {
 
     private fun renderSound() {
         soundView.text = "sound: ${store.alarmSoundLabel}" +
-            if (store.alarmSoundUri.isBlank()) " (loud, deliberately unpleasant)" else ""
+            (if (store.alarmSoundUri.isBlank()) " (loud, deliberately unpleasant)" else "") +
+            (if (store.lastSoundError.isNotBlank()) "\n⚠ ${store.lastSoundError}" else "")
+        reminderSoundView.text = "reminder sound: ${store.reminderSoundLabel}"
     }
 
     private fun saveAlarmSettings() {
         store.alarmVolumePercent = volumeInput.text.toString().toIntOrNull() ?: 100
         store.alarmVibrate = vibrateBox.isChecked
         volumeInput.setText(store.alarmVolumePercent.toString())
+        store.reminderEnabled = reminderBox.isChecked
+        store.reminderMinutes = reminderMinutesInput.text.toString()
+        store.reminderVolumePercent = reminderVolumeInput.text.toString().toIntOrNull() ?: 100
+        reminderVolumeInput.setText(store.reminderVolumePercent.toString())
+        store.previewLimit = previewLimitInput.text.toString().toIntOrNull() ?: 5000
+        previewLimitInput.setText(store.previewLimit.toString())
     }
 
-    private fun pickSound() {
-        val current = store.alarmSoundUri.takeIf { it.isNotBlank() }?.let { Uri.parse(it) }
+    private fun pickReminderSound() = pickSoundFor(REQ_REMINDER_SOUND, store.reminderSoundUri)
+
+    private fun pickSound() = pickSoundFor(REQ_SOUND, store.alarmSoundUri)
+
+    private fun pickSoundFor(requestCode: Int, existingUri: String) {
+        val current = existingUri.takeIf { it.isNotBlank() }?.let { Uri.parse(it) }
         val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
             putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
             putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Alarm sound")
             putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
             putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
             putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, current)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
         }
-        runCatching { startActivityForResult(intent, REQ_SOUND) }
+        runCatching { startActivityForResult(intent, requestCode) }
             .onFailure { toast("No sound picker available on this device") }
     }
 
@@ -239,18 +332,48 @@ class MainActivity : Activity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         @Suppress("DEPRECATION")
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != REQ_SOUND || resultCode != RESULT_OK) return
+        if (resultCode != RESULT_OK) return
+        val forReminder = requestCode == REQ_REMINDER_SOUND
+        if (requestCode != REQ_SOUND && !forReminder) return
+
         val uri: Uri? = data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
         if (uri == null) {
-            store.alarmSoundUri = ""
-            store.alarmSoundLabel = "Built-in siren"
+            if (forReminder) {
+                store.reminderSoundUri = ""
+                store.reminderSoundLabel = "Built-in siren"
+            } else {
+                store.alarmSoundUri = ""
+                store.alarmSoundLabel = "Built-in siren"
+            }
+            renderSound()
+            return
+        }
+
+        if (uri.scheme == "content") {
+            runCatching {
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        }
+
+        val err = AlarmPlayer.checkPlayable(this, uri)
+        if (err != null) {
+            toast("That sound cannot be played: $err")
+            return
+        }
+
+        val label = runCatching {
+            RingtoneManager.getRingtone(this, uri)?.getTitle(this)
+        }.getOrNull()?.takeIf { it.isNotBlank() } ?: "Custom sound"
+        if (forReminder) {
+            store.reminderSoundUri = uri.toString()
+            store.reminderSoundLabel = label
         } else {
             store.alarmSoundUri = uri.toString()
-            store.alarmSoundLabel = runCatching {
-                RingtoneManager.getRingtone(this, uri)?.getTitle(this)
-            }.getOrNull() ?: "Custom sound"
+            store.alarmSoundLabel = label
+            store.lastSoundError = ""
         }
         renderSound()
+        toast("Sound set: $label")
     }
 
     private fun saveSettings() {
@@ -332,25 +455,38 @@ class MainActivity : Activity() {
         box.addView(label("price currency (required with max price)")); box.addView(cur)
         box.addView(label("only these sources")); box.addView(src)
 
+        fun currentRule(): Rule? {
+            val maxVal = max.text.toString().trim().toDoubleOrNull()
+            val currency = cur.text.toString().trim().uppercase()
+            if (maxVal != null && currency.isBlank()) {
+                toast("A max price needs a currency — listings come in JPY, EUR and USD")
+                return null
+            }
+            return Rule(
+                id = existing?.id ?: store.nextRuleId(),
+                enabled = existing?.enabled ?: true,
+                keywords = kw.text.toString().trim(),
+                excludeKeywords = ex.text.toString().trim(),
+                maxPrice = maxVal,
+                currency = currency,
+                sources = src.text.toString().trim(),
+            )
+        }
+
+        box.addView(Button(this).apply {
+            text = "Would match…"
+            setOnClickListener {
+                saveAlarmSettings()
+                val r = currentRule() ?: return@setOnClickListener
+                RulePreview.show(this@MainActivity, r)
+            }
+        })
+
         AlertDialog.Builder(this)
             .setTitle(if (existing == null) "New rule" else "Edit rule")
             .setView(ScrollView(this).apply { addView(box) })
             .setPositiveButton("Save") { _, _ ->
-                val maxVal = max.text.toString().trim().toDoubleOrNull()
-                val currency = cur.text.toString().trim().uppercase()
-                if (maxVal != null && currency.isBlank()) {
-                    toast("A max price needs a currency — listings come in JPY, EUR and USD")
-                    return@setPositiveButton
-                }
-                val rule = Rule(
-                    id = existing?.id ?: store.nextRuleId(),
-                    enabled = existing?.enabled ?: true,
-                    keywords = kw.text.toString().trim(),
-                    excludeKeywords = ex.text.toString().trim(),
-                    maxPrice = maxVal,
-                    currency = currency,
-                    sources = src.text.toString().trim(),
-                )
+                val rule = currentRule() ?: return@setPositiveButton
                 store.upsertRule(rule)
                 renderRules()
             }
@@ -402,5 +538,6 @@ class MainActivity : Activity() {
 
     private companion object {
         const val REQ_SOUND = 42
+        const val REQ_REMINDER_SOUND = 43
     }
 }

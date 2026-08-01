@@ -18,6 +18,9 @@ class AlarmWorker(context: Context, params: WorkerParameters) : CoroutineWorker(
         val result = runCatching { Poller.pollOnce(applicationContext) }.getOrNull()
         if (result != null && result.alarmed.isNotEmpty()) {
             Notifications.fireAlarm(applicationContext, result.alarmed)
+        } else if (result != null && result.reminders.isNotEmpty()) {
+            Store(applicationContext).setLastReminder(result.reminders)
+            Notifications.fireReminder(applicationContext, result.reminders)
         }
 
         runCatching { PollService.start(applicationContext) }

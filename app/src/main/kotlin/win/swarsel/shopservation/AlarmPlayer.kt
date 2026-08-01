@@ -29,27 +29,44 @@ object AlarmPlayer {
 
     @Synchronized
     fun start(context: Context) {
+        val store = Store(context)
+        start(context, store.alarmSoundUri, store.alarmSoundLabel, store.alarmVolumePercent, store.alarmVibrate)
+    }
+
+    @Synchronized
+    fun startReminder(context: Context) {
+        val store = Store(context)
+        start(context, store.reminderSoundUri, store.reminderSoundLabel, store.reminderVolumePercent, store.alarmVibrate)
+    }
+
+    @Synchronized
+    fun start(context: Context, soundUri: String, soundLabel: String, volumePercent: Int, vibrate: Boolean) {
         if (isPlaying) return
         val store = Store(context)
 
         val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val max = audio.getStreamMaxVolume(AudioManager.STREAM_ALARM)
         previousVolume = audio.getStreamVolume(AudioManager.STREAM_ALARM)
-        val wanted = (max * store.alarmVolumePercent / 100).coerceIn(1, max)
+        val wanted = (max * volumePercent / 100).coerceIn(1, max)
         runCatching { audio.setStreamVolume(AudioManager.STREAM_ALARM, wanted, 0) }
             .onFailure { Log.w(TAG, "could not set alarm volume", it) }
 
-        if (store.alarmSoundUri.isBlank()) {
+        if (soundUri.isBlank()) {
             siren = Siren().also { it.start() }
         } else {
-            val uri = Uri.parse(store.alarmSoundUri)
+            val uri = Uri.parse(soundUri)
             player = runCatching { buildPlayer(context, uri) }
                 .onFailure { Log.e(TAG, "alarm playback failed for $uri, falling back to siren", it) }
                 .getOrNull()
-            if (player == null) siren = Siren().also { it.start() }
+            if (player == null) {
+                store.lastSoundError = "could not play $soundLabel; used the siren instead"
+                siren = Siren().also { it.start() }
+            } else {
+                store.lastSoundError = ""
+            }
         }
 
-        if (store.alarmVibrate) startVibrate(context)
+        if (vibrate) startVibrate(context)
     }
 
     @Synchronized
@@ -75,11 +92,23 @@ object AlarmPlayer {
         previousVolume = null
     }
 
+    fun checkPlayable(context: Context, uri: Uri): String? {
+        var p: MediaPlayer? = null
+        return try {
+            p = buildPreparedPlayer(context, uri)
+            null
+        } catch (e: Exception) {
+            e.message ?: e::class.java.simpleName
+        } finally {
+            runCatching { p?.release() }
+        }
+    }
+
     fun defaultSystemAlarmUri(context: Context): Uri? =
         RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
 
-    private fun buildPlayer(context: Context, uri: Uri): MediaPlayer =
+    private fun buildPreparedPlayer(context: Context, uri: Uri): MediaPlayer =
         MediaPlayer().apply {
             setAudioAttributes(
                 AudioAttributes.Builder()
@@ -91,8 +120,10 @@ object AlarmPlayer {
             isLooping = true
             setVolume(1f, 1f)
             prepare()
-            start()
         }
+
+    private fun buildPlayer(context: Context, uri: Uri): MediaPlayer =
+        buildPreparedPlayer(context, uri).apply { start() }
 
     private fun startVibrate(context: Context) {
         val v = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

@@ -56,6 +56,9 @@ class PollService : Service() {
                         Notifications.updateWatch(this@PollService, result.status)
                         if (result.alarmed.isNotEmpty()) {
                             Notifications.fireAlarm(this@PollService, result.alarmed)
+                        } else if (result.reminders.isNotEmpty()) {
+                            Store(this@PollService).setLastReminder(result.reminders)
+                            Notifications.fireReminder(this@PollService, result.reminders)
                         }
                     }
                     delay(Store(this@PollService).pollSeconds.toLong() * 1000L)

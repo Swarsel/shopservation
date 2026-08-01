@@ -21,6 +21,10 @@ import kotlin.concurrent.thread
 
 class AlarmActivity : Activity() {
 
+    companion object {
+        const val ACTION_REMINDER = "win.swarsel.shopservation.SHOW_REMINDER"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -36,24 +40,28 @@ class AlarmActivity : Activity() {
         }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
+        val reminderMode = intent?.action == ACTION_REMINDER
+        val store = Store(this)
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#7f1d1d"))
+            setBackgroundColor(Color.parseColor(if (reminderMode) "#78350f" else "#7f1d1d"))
             setPadding(40, 72, 40, 40)
         }
 
         root.addView(TextView(this).apply {
-            text = "🔔 shopservatory match"
+            text = if (reminderMode) "⏳ auction ending soon" else "🔔 shopservatory match"
             textSize = 24f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
         })
 
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        val items = Store(this).lastAlarm()
+        val items = if (reminderMode) store.lastReminder() else store.lastAlarm()
         if (items.isEmpty()) {
             list.addView(TextView(this).apply {
-                text = "\nA matching listing was found."
+                text = if (reminderMode) "\nA monitored auction is ending soon."
+                    else "\nA matching listing was found."
                 setTextColor(Color.WHITE)
             })
         } else {

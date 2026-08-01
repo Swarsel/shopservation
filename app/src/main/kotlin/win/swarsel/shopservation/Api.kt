@@ -9,21 +9,44 @@ import java.net.URLEncoder
 class ApiError(message: String) : IOException(message)
 
 class Api(private val store: Store) {
-    fun fetchListings(): List<Listing> {
+    data class State(
+        val listings: List<Listing>,
+        val monitors: List<Monitor>,
+        val page: Int,
+        val pages: Int,
+        val total: Int,
+    )
+
+    fun fetchListings(): List<Listing> = fetchState(1).listings
+
+    fun fetchState(page: Int, query: String = ""): State {
+        var path = "/api/v1/state?page=$page"
+        if (query.isNotBlank()) path += "&q=" + URLEncoder.encode(query, "UTF-8")
+
         var token = store.token
         if (token.isBlank()) token = login()
-
-        var body = try {
-            get("/api/v1/state?page=1", token)
+        val body = try {
+            get(path, token)
         } catch (e: ApiError) {
             if (e.message?.contains("401") != true) throw e
             token = login()
-            get("/api/v1/state?page=1", token)
+            get(path, token)
         }
 
         val root = JSONObject(body)
-        val arr = root.optJSONArray("listings") ?: return emptyList()
-        return (0 until arr.length()).map { Listing.fromJson(arr.getJSONObject(it)) }
+        val la = root.optJSONArray("listings")
+        val listings = if (la == null) emptyList() else
+            (0 until la.length()).map { Listing.fromJson(la.getJSONObject(it)) }
+        val ma = root.optJSONArray("monitors")
+        val monitors = if (ma == null) emptyList() else
+            (0 until ma.length()).map { Monitor.fromJson(ma.getJSONObject(it)) }
+        return State(
+            listings = listings,
+            monitors = monitors,
+            page = root.optInt("listingsPage", 1),
+            pages = root.optInt("listingsPages", 1),
+            total = root.optInt("listingsTotal", listings.size),
+        )
     }
 
     fun testConnection(): String {

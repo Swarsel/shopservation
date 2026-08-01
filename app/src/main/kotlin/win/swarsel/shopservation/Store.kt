@@ -53,6 +53,51 @@ class Store(context: Context) {
         get() = prefs.getBoolean("alarmVibrate", true)
         set(v) = prefs.edit().putBoolean("alarmVibrate", v).apply()
 
+    var lastSoundError: String
+        get() = prefs.getString("lastSoundError", "") ?: ""
+        set(v) = prefs.edit().putString("lastSoundError", v).apply()
+
+    var previewLimit: Int
+        get() = prefs.getInt("previewLimit", 5000)
+        set(v) = prefs.edit().putInt("previewLimit", if (v <= 0) 0 else v.coerceAtLeast(100)).apply()
+
+    var reminderEnabled: Boolean
+        get() = prefs.getBoolean("reminderEnabled", false)
+        set(v) = prefs.edit().putBoolean("reminderEnabled", v).apply()
+
+    var reminderMinutes: String
+        get() = prefs.getString("reminderMinutes", "10") ?: "10"
+        set(v) = prefs.edit().putString("reminderMinutes", v).apply()
+
+    var reminderSoundUri: String
+        get() = prefs.getString("reminderSoundUri", "") ?: ""
+        set(v) = prefs.edit().putString("reminderSoundUri", v).apply()
+
+    var reminderSoundLabel: String
+        get() = prefs.getString("reminderSoundLabel", "Built-in siren") ?: "Built-in siren"
+        set(v) = prefs.edit().putString("reminderSoundLabel", v).apply()
+
+    var reminderVolumePercent: Int
+        get() = prefs.getInt("reminderVolumePercent", 100)
+        set(v) = prefs.edit().putInt("reminderVolumePercent", v.coerceIn(10, 100)).apply()
+
+    fun reminderLeadMinutes(): List<Int> =
+        reminderMinutes.split(',', '\n')
+            .mapNotNull { it.trim().toIntOrNull() }
+            .filter { it > 0 }
+            .distinct()
+            .sortedDescending()
+
+    fun reminderFired(): Set<String> = prefs.getStringSet("reminderFired", emptySet())?.toSet() ?: emptySet()
+
+    fun markReminderFired(key: String, cap: Int = 500) {
+        val cur = reminderFired().toMutableList()
+        if (cur.contains(key)) return
+        cur.add(key)
+        val trimmed = if (cur.size > cap) cur.subList(cur.size - cap, cur.size) else cur
+        prefs.edit().putStringSet("reminderFired", trimmed.toSet()).apply()
+    }
+
     fun configured(): Boolean =
         serverUrl.isNotBlank() && (token.isNotBlank() || (email.isNotBlank() && password.isNotBlank()))
 
@@ -105,6 +150,82 @@ class Store(context: Context) {
     var seeded: Boolean
         get() = prefs.getBoolean("seeded", false)
         set(v) = prefs.edit().putBoolean("seeded", v).apply()
+
+    fun setLastReminder(dues: List<Reminders.Due>) {
+        val arr = JSONArray()
+        dues.take(20).forEach { d ->
+            arr.put(JSONObject().apply {
+                put("title", d.monitor.title)
+                put("source", d.monitor.source)
+                put("price", d.monitor.price)
+                put("url", d.monitor.url)
+                put("ends", d.monitor.ends)
+                put("lead", d.leadMinutes)
+            })
+        }
+        prefs.edit().putString("lastReminder", arr.toString()).apply()
+    }
+
+    fun lastReminder(): List<Listing> {
+        val raw = prefs.getString("lastReminder", "[]") ?: "[]"
+        val arr = runCatching { JSONArray(raw) }.getOrElse { JSONArray() }
+        return (0 until arr.length()).map { i ->
+            val o = arr.getJSONObject(i)
+            Listing(
+                source = o.optString("source"),
+                searchId = 0,
+                externalId = "reminder$i",
+                title = o.optString("title"),
+                price = 0.0,
+                currency = "",
+                url = o.optString("url"),
+                saleType = "auction",
+            )
+        }
+    }
+
+    fun lastReminderLabels(): List<String> {
+        val raw = prefs.getString("lastReminder", "[]") ?: "[]"
+        val arr = runCatching { JSONArray(raw) }.getOrElse { JSONArray() }
+        return (0 until arr.length()).map { i ->
+            val o = arr.getJSONObject(i)
+            val price = o.optString("price")
+            buildString {
+                append(o.optString("title"))
+                if (price.isNotBlank()) append("\n   ")
+                append(price)
+                append("\n   ends in under ")
+                append(o.optInt("lead"))
+                append(" min")
+            }
+        }
+    }
+
+    fun cacheMonitors(items: List<Monitor>) {
+        val arr = JSONArray()
+        items.forEach { m ->
+            arr.put(JSONObject().apply {
+                put("id", m.id)
+                put("source", m.source)
+                put("title", m.title)
+                put("url", m.url)
+                put("price", m.price)
+                put("status", m.status)
+                put("saleType", m.saleType)
+                put("ends", m.ends)
+                put("archived", m.archived)
+            })
+        }
+        prefs.edit().putString("monitors", arr.toString()).apply()
+    }
+
+    fun cachedMonitors(): List<Monitor> {
+        val raw = prefs.getString("monitors", "[]") ?: "[]"
+        val arr = runCatching { JSONArray(raw) }.getOrElse { JSONArray() }
+        return (0 until arr.length()).mapNotNull { i ->
+            runCatching { Monitor.fromJson(arr.getJSONObject(i)) }.getOrNull()
+        }
+    }
 
     fun setLastAlarm(items: List<Listing>) {
         val arr = JSONArray()

@@ -33,6 +33,39 @@ data class Listing(
     }
 }
 
+data class Monitor(
+    val id: Long,
+    val source: String,
+    val title: String,
+    val url: String,
+    val price: String,
+    val status: String,
+    val saleType: String,
+    val ends: String,
+    val archived: Boolean,
+) {
+    fun endsAtMillis(): Long? {
+        if (ends.isBlank()) return null
+        return runCatching {
+            java.time.Instant.parse(ends).toEpochMilli()
+        }.getOrNull()
+    }
+
+    companion object {
+        fun fromJson(o: JSONObject) = Monitor(
+            id = o.optLong("id"),
+            source = o.optString("source"),
+            title = o.optString("title"),
+            url = o.optString("url"),
+            price = o.optString("price"),
+            status = o.optString("status"),
+            saleType = o.optString("saleType"),
+            ends = o.optString("ends"),
+            archived = o.optBoolean("archived"),
+        )
+    }
+}
+
 data class Rule(
     val id: Long,
     val enabled: Boolean = true,
