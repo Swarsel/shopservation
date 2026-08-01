@@ -71,6 +71,13 @@ class ListingCache(context: Context) {
         save(if (cap > 0 && merged.size > cap) merged.subList(0, cap) else merged, total)
     }
 
+    fun isComplete(limit: Int): Boolean {
+        val have = load().size
+        if (have == 0) return false
+        val t = total
+        return t == 0 || have >= t || (limit > 0 && have >= limit)
+    }
+
     fun clear() {
         runCatching { file.delete() }
         prefs.edit().remove("listingsCachedAt").remove("listingsCachedTotal").apply()

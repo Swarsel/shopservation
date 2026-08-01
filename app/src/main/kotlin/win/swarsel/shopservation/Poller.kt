@@ -34,7 +34,12 @@ object Poller {
         }
         val listings = state.listings
         store.cacheMonitors(state.monitors)
-        ListingCache(context).mergeNewest(listings, state.total, store.previewLimit)
+
+        val cache = ListingCache(context)
+        cache.mergeNewest(listings, state.total, store.previewLimit)
+        if (!cache.isComplete(store.previewLimit) && state.pages > 1) {
+            backfill(store, cache, state)
+        }
 
         val reminders = if (store.reminderEnabled) {
             Reminders.due(state.monitors, store.reminderLeadMinutes(), System.currentTimeMillis(), store.reminderFired())
@@ -64,6 +69,24 @@ object Poller {
         if (hits.isNotEmpty()) store.setLastAlarm(hits)
         return Result(hits, reminders, s)
     }
+
+    private fun backfill(store: Store, cache: ListingCache, first: Api.State) {
+        val limit = store.previewLimit
+        val all = mutableListOf<Listing>()
+        all += first.listings
+        val api = Api(store)
+        var page = 2
+        while (page <= first.pages && page <= MAX_BACKFILL_PAGES) {
+            if (limit > 0 && all.size >= limit) break
+            val st = runCatching { api.fetchState(page) }.getOrNull() ?: break
+            all += st.listings
+            page++
+        }
+        cache.save(if (limit > 0 && all.size > limit) all.subList(0, limit) else all, first.total)
+        Log.i(TAG, "cache backfilled to " + all.size + " of " + first.total)
+    }
+
+    private const val MAX_BACKFILL_PAGES = 2000
 
     private fun stamp(): String =
         SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())

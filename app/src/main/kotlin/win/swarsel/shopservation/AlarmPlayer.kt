@@ -21,11 +21,12 @@ object AlarmPlayer {
     private const val TAG = "AlarmPlayer"
 
     private var player: MediaPlayer? = null
+    private var ringtone: android.media.Ringtone? = null
     private var siren: Siren? = null
     private var vibrator: Vibrator? = null
     private var previousVolume: Int? = null
 
-    val isPlaying: Boolean get() = player != null || siren != null
+    val isPlaying: Boolean get() = player != null || siren != null || ringtone != null
 
     @Synchronized
     fun start(context: Context) {
@@ -56,9 +57,21 @@ object AlarmPlayer {
         } else {
             val uri = Uri.parse(soundUri)
             player = runCatching { buildPlayer(context, uri) }
-                .onFailure { Log.e(TAG, "alarm playback failed for $uri, falling back to siren", it) }
+                .onFailure { Log.w(TAG, "MediaPlayer failed for $uri, trying Ringtone", it) }
                 .getOrNull()
             if (player == null) {
+                ringtone = runCatching {
+                    RingtoneManager.getRingtone(context, uri)?.apply {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) isLooping = true
+                        audioAttributes = AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ALARM)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build()
+                        play()
+                    }
+                }.onFailure { Log.e(TAG, "Ringtone playback failed for $uri", it) }.getOrNull()
+            }
+            if (player == null && ringtone == null) {
                 store.lastSoundError = "could not play $soundLabel; used the siren instead"
                 siren = Siren().also { it.start() }
             } else {
@@ -79,6 +92,9 @@ object AlarmPlayer {
         }
         player = null
 
+        ringtone?.let { r -> runCatching { if (r.isPlaying) r.stop() } }
+        ringtone = null
+
         siren?.stopAndJoin()
         siren = null
 
@@ -94,7 +110,7 @@ object AlarmPlayer {
 
     fun checkPlayable(context: Context, uri: Uri): String? {
         var p: MediaPlayer? = null
-        return try {
+        val direct = try {
             p = buildPreparedPlayer(context, uri)
             null
         } catch (e: Exception) {
@@ -102,6 +118,12 @@ object AlarmPlayer {
         } finally {
             runCatching { p?.release() }
         }
+        if (direct == null) return null
+
+        val viaRingtone = runCatching {
+            RingtoneManager.getRingtone(context, uri) != null
+        }.getOrDefault(false)
+        return if (viaRingtone) null else direct
     }
 
     fun defaultSystemAlarmUri(context: Context): Uri? =

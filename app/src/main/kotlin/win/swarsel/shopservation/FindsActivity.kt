@@ -8,6 +8,7 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
@@ -17,6 +18,7 @@ import android.widget.TextView
 import android.widget.Toast
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.Executors
 import kotlin.concurrent.thread
 
 class FindsActivity : Activity() {
@@ -25,10 +27,17 @@ class FindsActivity : Activity() {
     private lateinit var statusView: TextView
     private lateinit var listBox: LinearLayout
     private lateinit var queryInput: EditText
-    private lateinit var pageLabel: TextView
+    private lateinit var scroller: ScrollView
+    private lateinit var moreButton: Button
 
-    private var page = 1
-    private var pages = 1
+    private val thumbs = Executors.newFixedThreadPool(4)
+    private var items: List<Listing> = emptyList()
+    private var shown = 0
+    private var rules: List<Rule> = emptyList()
+    private var baseStatus = ""
+
+    private var serverPage = 1
+    private var serverPages = 1
     private var loading = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,11 +64,11 @@ class FindsActivity : Activity() {
         bar.addView(queryInput)
         bar.addView(Button(this).apply {
             text = "Search"
-            setOnClickListener { page = 1; load() }
+            setOnClickListener { load() }
         })
         bar.addView(Button(this).apply {
             text = "↻"
-            setOnClickListener { page = 1; load(force = true) }
+            setOnClickListener { load(force = true) }
         })
         root.addView(bar)
 
@@ -70,60 +79,66 @@ class FindsActivity : Activity() {
         root.addView(statusView)
 
         listBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        root.addView(ScrollView(this).apply {
+        moreButton = Button(this).apply {
+            text = "Load more"
+            visibility = View.GONE
+            setOnClickListener { showMore() }
+        }
+
+        val inner = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
             addView(listBox)
+            addView(moreButton)
+        }
+        scroller = ScrollView(this).apply {
+            addView(inner)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0,
             ).apply { weight = 1f }
-        })
-
-        val pager = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+            setOnScrollChangeListener { v, _, _, _, _ ->
+                val sv = v as ScrollView
+                val child = sv.getChildAt(0) ?: return@setOnScrollChangeListener
+                if (sv.scrollY + sv.height >= child.height - 200) showMore()
+            }
         }
-        pager.addView(Button(this).apply {
-            text = "‹ prev"
-            setOnClickListener { if (page > 1) { page--; load() } }
-        })
-        pageLabel = TextView(this).apply {
-            textSize = 12f
-            setPadding(16, 0, 16, 0)
-        }
-        pager.addView(pageLabel)
-        pager.addView(Button(this).apply {
-            text = "next ›"
-            setOnClickListener { if (page < pages) { page++; load() } }
-        })
-        root.addView(pager)
+        root.addView(scroller)
 
         setContentView(root)
         load()
     }
 
+    override fun onDestroy() {
+        thumbs.shutdownNow()
+        super.onDestroy()
+    }
+
     private fun load(force: Boolean = false) {
         if (loading) return
         val q = queryInput.text.toString().trim()
+        rules = store.rules()
+        serverPage = 1
 
-        if (!force && page == 1 && q.isEmpty()) {
+        if (!force && q.isEmpty()) {
             val cache = ListingCache(this)
             val cached = cache.load()
             if (cached.isNotEmpty() && cache.isFresh(CACHE_MAX_AGE_MS)) {
-                pages = 1
-                pageLabel.text = "cached"
+                serverPages = 1
                 val mins = cache.ageMillis() / 60000
-                statusView.text = "${cached.size} cached find(s) · ${mins}m old · ↻ to refresh"
-                render(cached)
+                baseStatus = "${cached.size} cached find(s) · ${mins}m old · ↻ to refresh"
+                setItems(cached)
                 return
             }
         }
 
         if (!store.configured()) {
-            statusView.text = "Set the server, email and password first."
+            baseStatus = "Set the server, email and password first."
+            statusView.text = baseStatus
             return
         }
         loading = true
-        statusView.text = "loading…"
-        val wanted = page
+        baseStatus = "loading…"
+        statusView.text = baseStatus
+        val wanted = serverPage
         thread {
             val res = runCatching { Api(store).fetchState(wanted, q) }
             runOnUiThread {
@@ -132,102 +147,156 @@ class FindsActivity : Activity() {
                     if (st.page == 1 && q.isEmpty()) {
                         ListingCache(this@FindsActivity).mergeNewest(st.listings, st.total, store.previewLimit)
                     }
-                    page = st.page
-                    pages = st.pages
-                    pageLabel.text = "page ${st.page} / ${st.pages}"
-                    statusView.text = "${st.total} find(s)" + if (q.isNotBlank()) " matching \"$q\"" else ""
-                    render(st.listings)
+                    serverPage = st.page
+                    serverPages = st.pages
+                    baseStatus = "${st.total} find(s)" +
+                        (if (q.isNotBlank()) " matching \"$q\"" else "")
+                    setItems(st.listings)
                 }.onFailure { e ->
-                    statusView.text = "failed: ${e.message}"
+                    baseStatus = "failed: ${e.message}"
+                    statusView.text = baseStatus
                 }
             }
         }
     }
 
-    private fun render(items: List<Listing>) {
+    private fun loadNextServerPage() {
+        if (loading || serverPage >= serverPages) return
+        loading = true
+        val q = queryInput.text.toString().trim()
+        val wanted = serverPage + 1
+        moreButton.text = "loading…"
+        thread {
+            val res = runCatching { Api(store).fetchState(wanted, q) }
+            runOnUiThread {
+                loading = false
+                moreButton.text = "Load more"
+                res.onSuccess { st ->
+                    serverPage = st.page
+                    serverPages = st.pages
+                    items = items + st.listings
+                    showMore()
+                    updateMoreButton()
+                }.onFailure { e ->
+                    Toast.makeText(this@FindsActivity, "Could not load more: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun setItems(list: List<Listing>) {
+        items = list
+        shown = 0
         listBox.removeAllViews()
-        if (items.isEmpty()) {
+        if (list.isEmpty()) {
             listBox.addView(TextView(this).apply {
                 text = "Nothing here."
                 textSize = 13f
             })
+            moreButton.visibility = View.GONE
+            statusView.text = baseStatus
             return
         }
-        val rules = store.rules()
-        items.forEach { item ->
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                setPadding(0, 18, 0, 18)
-            }
-            if (item.imageUrl.isNotBlank()) {
-                val thumb = ImageView(this).apply {
-                    layoutParams = LinearLayout.LayoutParams(160, 160).apply { rightMargin = 20 }
-                    scaleType = ImageView.ScaleType.CENTER_CROP
-                    setBackgroundColor(Color.parseColor("#33888888"))
-                }
-                row.addView(thumb)
-                loadThumb(item.imageUrl, thumb)
-            }
+        showMore()
+        scroller.post { scroller.scrollTo(0, 0) }
+    }
 
-            val col = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT)
-                    .apply { weight = 1f }
-            }
-            val matched = Matcher.firstMatch(rules, item) != null
-            col.addView(TextView(this).apply {
-                text = (if (matched) "🔔 " else "") + item.title
-                textSize = 14f
-            })
-            col.addView(TextView(this).apply {
-                text = listOfNotNull(
-                    item.priceLabel.ifBlank { null },
-                    item.source.ifBlank { null },
-                    item.saleType.takeIf { it == "auction" },
-                ).joinToString(" · ")
-                textSize = 12f
-                setTextColor(Color.parseColor("#888888"))
-            })
-
-            val buttons = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            if (item.url.isNotBlank()) {
-                buttons.addView(Button(this).apply {
-                    text = "Open"
-                    setOnClickListener { open(item.url) }
-                })
-            }
-            Proxies.doorzoUrl(item)?.let { dz ->
-                buttons.addView(Button(this).apply {
-                    text = "Doorzo"
-                    setOnClickListener { open(dz) }
-                })
-            }
-            if (buttons.childCount > 0) col.addView(buttons)
-
-            row.addView(col)
-            listBox.addView(row)
+    private fun showMore() {
+        if (shown >= items.size) {
+            if (serverPage < serverPages) loadNextServerPage()
+            updateMoreButton()
+            return
         }
+        val end = minOf(shown + PAGE_SIZE, items.size)
+        for (i in shown until end) listBox.addView(row(items[i]))
+        shown = end
+        updateMoreButton()
+    }
+
+    private fun updateMoreButton() {
+        val hasLocal = shown < items.size
+        val hasRemote = serverPage < serverPages
+        moreButton.visibility = if (hasLocal || hasRemote) View.VISIBLE else View.GONE
+        statusView.text = if (items.isEmpty() || !(hasLocal || hasRemote)) baseStatus
+            else "$baseStatus · showing $shown of ${items.size}"
+    }
+
+    private fun row(item: Listing): LinearLayout {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, 18, 0, 18)
+        }
+        if (item.imageUrl.isNotBlank()) {
+            val thumb = ImageView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(160, 160).apply { rightMargin = 20 }
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                setBackgroundColor(Color.parseColor("#33888888"))
+            }
+            row.addView(thumb)
+            loadThumb(item.imageUrl, thumb)
+        }
+
+        val col = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT)
+                .apply { weight = 1f }
+        }
+        val matched = Matcher.firstMatch(rules, item) != null
+        col.addView(TextView(this).apply {
+            text = (if (matched) "🔔 " else "") + item.title
+            textSize = 14f
+        })
+        col.addView(TextView(this).apply {
+            text = listOfNotNull(
+                item.priceLabel.ifBlank { null },
+                item.source.ifBlank { null },
+                item.saleType.takeIf { it == "auction" },
+            ).joinToString(" · ")
+            textSize = 12f
+            setTextColor(Color.parseColor("#888888"))
+        })
+
+        val buttons = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        if (item.url.isNotBlank()) {
+            buttons.addView(Button(this).apply {
+                text = "Open"
+                setOnClickListener { open(item.url) }
+            })
+        }
+        Proxies.doorzoUrl(item)?.let { dz ->
+            buttons.addView(Button(this).apply {
+                text = "Doorzo"
+                setOnClickListener { open(dz) }
+            })
+        }
+        if (buttons.childCount > 0) col.addView(buttons)
+
+        row.addView(col)
+        return row
     }
 
     private fun loadThumb(url: String, into: ImageView) {
-        thread(isDaemon = true) {
-            val bmp = runCatching {
-                val conn = (URL(url).openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 8000
-                    readTimeout = 12000
-                    instanceFollowRedirects = true
-                    setRequestProperty("User-Agent", "Mozilla/5.0")
-                }
-                try {
-                    if (conn.responseCode != 200) null
-                    else conn.inputStream.use { s ->
-                        BitmapFactory.decodeStream(s, null, BitmapFactory.Options().apply { inSampleSize = 4 })
-                    }
-                } finally {
-                    conn.disconnect()
-                }
-            }.getOrNull() ?: return@thread
-            runOnUiThread { into.setImageBitmap(bmp as Bitmap) }
+        val task = Runnable {
+            val bmp = runCatching { fetchBitmap(url) }.getOrNull() ?: return@Runnable
+            runOnUiThread { into.setImageBitmap(bmp) }
+        }
+        runCatching { thumbs.execute(task) }
+    }
+
+    private fun fetchBitmap(url: String): Bitmap? {
+        val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+            connectTimeout = 8000
+            readTimeout = 12000
+            instanceFollowRedirects = true
+            setRequestProperty("User-Agent", "Mozilla/5.0")
+        }
+        return try {
+            if (conn.responseCode != 200) null
+            else conn.inputStream.use { s ->
+                BitmapFactory.decodeStream(s, null, BitmapFactory.Options().apply { inSampleSize = 4 })
+            }
+        } finally {
+            conn.disconnect()
         }
     }
 
@@ -238,5 +307,6 @@ class FindsActivity : Activity() {
 
     private companion object {
         const val CACHE_MAX_AGE_MS = 5 * 60 * 1000L
+        const val PAGE_SIZE = 25
     }
 }

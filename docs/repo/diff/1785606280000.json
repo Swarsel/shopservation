@@ -1,21 +1,21 @@
 {
   "repo": {
-    "timestamp": 1785617464000
+    "timestamp": 1785618430000
   },
   "packages": {
     "win.swarsel.shopservation": {
       "versions": {
         "5ddeb38c090f6b56cb6595c821f95b0b84927628cd2f7114f16901f7220c9643": null,
-        "13924c5260adc58d0f007cdf6778898012d74e6a2cdc8e87335bd266a3947961": {
+        "8c58db98f27ecffd345487ec828cad28035784b8d5f6bb1cb8ddf26731b8187d": {
           "added": 1785606114000,
           "file": {
             "name": "/win.swarsel.shopservation.apk",
-            "sha256": "13924c5260adc58d0f007cdf6778898012d74e6a2cdc8e87335bd266a3947961",
-            "size": 4921170
+            "sha256": "8c58db98f27ecffd345487ec828cad28035784b8d5f6bb1cb8ddf26731b8187d",
+            "size": 4924142
           },
           "manifest": {
-            "versionName": "0.3.0",
-            "versionCode": 3,
+            "versionName": "0.4.0",
+            "versionCode": 4,
             "usesSdk": {
               "minSdkVersion": 26,
               "targetSdkVersion": 34
@@ -52,6 +52,13 @@
               },
               {
                 "name": "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_AUDIO"
+              },
+              {
+                "name": "android.permission.READ_EXTERNAL_STORAGE",
+                "maxSdkVersion": 32
               },
               {
                 "name": "android.permission.ACCESS_NETWORK_STATE"

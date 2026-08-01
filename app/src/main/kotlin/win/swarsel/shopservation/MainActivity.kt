@@ -40,6 +40,7 @@ class MainActivity : Activity() {
     private lateinit var reminderVolumeInput: EditText
     private lateinit var reminderSoundView: TextView
     private lateinit var previewLimitInput: EditText
+    private var pendingSoundRequest = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -314,7 +315,17 @@ class MainActivity : Activity() {
 
     private fun pickSound() = pickSoundFor(REQ_SOUND, store.alarmSoundUri)
 
+    private fun audioPermission(): String =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.READ_MEDIA_AUDIO
+        else Manifest.permission.READ_EXTERNAL_STORAGE
+
     private fun pickSoundFor(requestCode: Int, existingUri: String) {
+        val perm = audioPermission()
+        if (checkSelfPermission(perm) != PackageManager.PERMISSION_GRANTED) {
+            pendingSoundRequest = requestCode
+            requestPermissions(arrayOf(perm), REQ_AUDIO_PERM)
+            return
+        }
         val current = existingUri.takeIf { it.isNotBlank() }?.let { Uri.parse(it) }
         val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
             putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
@@ -494,6 +505,26 @@ class MainActivity : Activity() {
             .show()
     }
 
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != REQ_AUDIO_PERM) return
+        val want = pendingSoundRequest
+        pendingSoundRequest = 0
+        val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+        if (!granted) {
+            toast("Without audio access the device's own sounds cannot be read; the siren still works")
+            return
+        }
+        when (want) {
+            REQ_SOUND -> pickSoundFor(REQ_SOUND, store.alarmSoundUri)
+            REQ_REMINDER_SOUND -> pickSoundFor(REQ_REMINDER_SOUND, store.reminderSoundUri)
+        }
+    }
+
     private fun requestRuntimePermissions() {
         val wanted = mutableListOf<String>()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -539,5 +570,6 @@ class MainActivity : Activity() {
     private companion object {
         const val REQ_SOUND = 42
         const val REQ_REMINDER_SOUND = 43
+        const val REQ_AUDIO_PERM = 44
     }
 }

@@ -48,7 +48,10 @@ object RulePreview {
                     status.text = buildString {
                         append("${hits.size} of ${listings.size} find(s) would match")
                         if (scan.truncated) {
-                            append(" (checked the newest ${listings.size} of ${scan.total})")
+                            append(" (newest ${listings.size} of ${scan.total})")
+                        }
+                        if (scan.fromCache) {
+                            append(" · cached ${scan.ageMillis / 60000}m ago")
                         }
                         append(":")
                     }
@@ -81,20 +84,39 @@ object RulePreview {
         }
     }
 
-    data class Scan(val listings: List<Listing>, val total: Int, val truncated: Boolean)
+    data class Scan(
+        val listings: List<Listing>,
+        val total: Int,
+        val truncated: Boolean,
+        val fromCache: Boolean = false,
+        val ageMillis: Long = 0L,
+    )
 
     private const val MAX_PAGES = 2000
+    private const val CACHE_MAX_AGE_MS = 10 * 60 * 1000L
 
     private fun collect(context: Context, store: Store, onProgress: (Int, Int) -> Unit): Scan {
         val cache = ListingCache(context)
+        val limit = store.previewLimit
         val cached = cache.load()
-        if (cached.isNotEmpty() && (cache.total == 0 || cached.size >= cache.total)) {
-            onProgress(cached.size, cache.total)
-            return Scan(cached, if (cache.total > 0) cache.total else cached.size, truncated = false)
+
+        if (cached.isNotEmpty() && cache.isFresh(CACHE_MAX_AGE_MS)) {
+            val complete = cache.total == 0 ||
+                cached.size >= cache.total ||
+                (limit > 0 && cached.size >= limit)
+            if (complete) {
+                onProgress(cached.size, cache.total)
+                return Scan(
+                    listings = cached,
+                    total = if (cache.total > 0) cache.total else cached.size,
+                    truncated = cache.total > 0 && cached.size < cache.total,
+                    fromCache = true,
+                    ageMillis = cache.ageMillis(),
+                )
+            }
         }
 
         val api = Api(store)
-        val limit = store.previewLimit
         val all = mutableListOf<Listing>()
         var page = 1
         var total = 0
