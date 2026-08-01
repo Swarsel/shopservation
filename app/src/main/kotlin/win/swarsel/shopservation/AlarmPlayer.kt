@@ -37,7 +37,7 @@ object AlarmPlayer {
     @Synchronized
     fun startReminder(context: Context) {
         val store = Store(context)
-        start(context, store.reminderSoundUri, store.reminderSoundLabel, store.reminderVolumePercent, store.alarmVibrate)
+        start(context, store.reminderSoundUri, store.reminderSoundLabel, store.reminderVolumePercent, store.reminderVibrate)
     }
 
     @Synchronized

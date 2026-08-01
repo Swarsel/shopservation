@@ -81,6 +81,10 @@ class Store(context: Context) {
         get() = prefs.getInt("reminderVolumePercent", 100)
         set(v) = prefs.edit().putInt("reminderVolumePercent", v.coerceIn(10, 100)).apply()
 
+    var reminderVibrate: Boolean
+        get() = prefs.getBoolean("reminderVibrate", true)
+        set(v) = prefs.edit().putBoolean("reminderVibrate", v).apply()
+
     fun reminderLeadMinutes(): List<Int> =
         reminderMinutes.split(',', '\n')
             .mapNotNull { it.trim().toIntOrNull() }

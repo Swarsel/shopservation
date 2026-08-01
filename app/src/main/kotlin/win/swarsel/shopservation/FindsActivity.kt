@@ -2,8 +2,6 @@ package win.swarsel.shopservation
 
 import android.app.Activity
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
@@ -16,9 +14,6 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import java.net.HttpURLConnection
-import java.net.URL
-import java.util.concurrent.Executors
 import kotlin.concurrent.thread
 
 class FindsActivity : Activity() {
@@ -30,7 +25,6 @@ class FindsActivity : Activity() {
     private lateinit var scroller: ScrollView
     private lateinit var moreButton: Button
 
-    private val thumbs = Executors.newFixedThreadPool(4)
     private var items: List<Listing> = emptyList()
     private var shown = 0
     private var rules: List<Rule> = emptyList()
@@ -105,11 +99,6 @@ class FindsActivity : Activity() {
 
         setContentView(root)
         load()
-    }
-
-    override fun onDestroy() {
-        thumbs.shutdownNow()
-        super.onDestroy()
     }
 
     private fun load(force: Boolean = false) {
@@ -233,7 +222,7 @@ class FindsActivity : Activity() {
                 setBackgroundColor(Color.parseColor("#33888888"))
             }
             row.addView(thumb)
-            loadThumb(item.imageUrl, thumb)
+            Thumbs.load(this, item.imageUrl, thumb)
         }
 
         val col = LinearLayout(this).apply {
@@ -275,30 +264,7 @@ class FindsActivity : Activity() {
         return row
     }
 
-    private fun loadThumb(url: String, into: ImageView) {
-        val task = Runnable {
-            val bmp = runCatching { fetchBitmap(url) }.getOrNull() ?: return@Runnable
-            runOnUiThread { into.setImageBitmap(bmp) }
-        }
-        runCatching { thumbs.execute(task) }
-    }
 
-    private fun fetchBitmap(url: String): Bitmap? {
-        val conn = (URL(url).openConnection() as HttpURLConnection).apply {
-            connectTimeout = 8000
-            readTimeout = 12000
-            instanceFollowRedirects = true
-            setRequestProperty("User-Agent", "Mozilla/5.0")
-        }
-        return try {
-            if (conn.responseCode != 200) null
-            else conn.inputStream.use { s ->
-                BitmapFactory.decodeStream(s, null, BitmapFactory.Options().apply { inSampleSize = 4 })
-            }
-        } finally {
-            conn.disconnect()
-        }
-    }
 
     private fun open(url: String) {
         runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }

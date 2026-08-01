@@ -1,8 +1,10 @@
 package win.swarsel.shopservation
 
+import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Color
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -63,12 +65,7 @@ object RulePreview {
                         })
                     }
                     hits.take(50).forEach { l ->
-                        list.addView(TextView(context).apply {
-                            text = "\n• ${l.title}" +
-                                (if (l.priceLabel.isNotBlank()) "\n   ${l.priceLabel}" else "") +
-                                "\n   ${l.source}"
-                            textSize = 13f
-                        })
+                        list.addView(hitRow(context, l))
                     }
                     if (hits.size > 50) {
                         list.addView(TextView(context).apply {
@@ -82,6 +79,31 @@ object RulePreview {
                 }
             }
         }
+    }
+
+    private fun hitRow(context: Context, l: Listing): LinearLayout {
+        val row = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, 16, 0, 0)
+        }
+        val thumb = ImageView(context).apply {
+            layoutParams = LinearLayout.LayoutParams(140, 140).apply { rightMargin = 20 }
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            setBackgroundColor(Color.parseColor("#33888888"))
+        }
+        row.addView(thumb)
+        if (l.imageUrl.isNotBlank() && context is Activity) {
+            Thumbs.load(context, l.imageUrl, thumb)
+        }
+        row.addView(TextView(context).apply {
+            text = l.title +
+                (if (l.priceLabel.isNotBlank()) "\n${l.priceLabel}" else "") +
+                "\n${l.source}"
+            textSize = 13f
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT)
+                .apply { weight = 1f }
+        })
+        return row
     }
 
     data class Scan(

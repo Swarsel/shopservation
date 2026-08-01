@@ -41,6 +41,7 @@ class MainActivity : Activity() {
     private lateinit var reminderSoundView: TextView
     private lateinit var previewLimitInput: EditText
     private var pendingSoundRequest = 0
+    private lateinit var reminderVibrateBox: CheckBox
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,25 +62,27 @@ class MainActivity : Activity() {
         }
         root.addView(statusView)
 
-        root.addView(label("shopservatory server"))
+        val server = section(root, "Server", openByDefault = !store.configured())
+
+        server.addView(label("shopservatory server"))
         urlInput = input(store.serverUrl, "https://shopservatory.example.com")
-        root.addView(urlInput)
+        server.addView(urlInput)
 
-        root.addView(label("email"))
+        server.addView(label("email"))
         emailInput = input(store.email, "you@example.com")
-        root.addView(emailInput)
+        server.addView(emailInput)
 
-        root.addView(label("password"))
+        server.addView(label("password"))
         passwordInput = input(store.password, "").apply {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
         }
-        root.addView(passwordInput)
+        server.addView(passwordInput)
 
-        root.addView(label("poll interval (seconds)"))
+        server.addView(label("poll interval (seconds)"))
         intervalInput = input(store.pollSeconds.toString(), "60").apply {
             inputType = InputType.TYPE_CLASS_NUMBER
         }
-        root.addView(intervalInput)
+        server.addView(intervalInput)
 
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         row.addView(Button(this).apply {
@@ -90,7 +93,7 @@ class MainActivity : Activity() {
             text = "Test"
             setOnClickListener { testConnection() }
         })
-        root.addView(row)
+        server.addView(row)
 
         val row2 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         row2.addView(Button(this).apply {
@@ -123,12 +126,12 @@ class MainActivity : Activity() {
         })
         root.addView(row3)
 
-        root.addView(header("Alarm sound"))
+        val soundSec = section(root, "Alarm sound", openByDefault = false)
         soundView = TextView(this).apply {
             textSize = 13f
             setPadding(0, 0, 0, 4)
         }
-        root.addView(soundView)
+        soundSec.addView(soundView)
 
         val srow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         srow.addView(Button(this).apply {
@@ -144,20 +147,20 @@ class MainActivity : Activity() {
                 toast("Using the built-in siren")
             }
         })
-        root.addView(srow)
+        soundSec.addView(srow)
 
-        root.addView(label("volume (% of the alarm stream's maximum)"))
+        soundSec.addView(label("volume (% of the alarm stream's maximum)"))
         volumeInput = input(store.alarmVolumePercent.toString(), "100").apply {
             inputType = InputType.TYPE_CLASS_NUMBER
         }
-        root.addView(volumeInput)
+        soundSec.addView(volumeInput)
 
         vibrateBox = CheckBox(this).apply {
             text = "vibrate as well"
             isChecked = store.alarmVibrate
             setOnCheckedChangeListener { _, v -> store.alarmVibrate = v }
         }
-        root.addView(vibrateBox)
+        soundSec.addView(vibrateBox)
 
         val trow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         trow.addView(Button(this).apply {
@@ -175,9 +178,9 @@ class MainActivity : Activity() {
                 Notifications.clearAlarm(this@MainActivity)
             }
         })
-        root.addView(trow)
+        soundSec.addView(trow)
 
-        root.addView(Button(this).apply {
+        soundSec.addView(Button(this).apply {
             text = "Test full alarm (notification + screen)"
             setOnClickListener {
                 saveAlarmSettings()
@@ -194,8 +197,8 @@ class MainActivity : Activity() {
             }
         })
 
-        root.addView(header("Auction reminders"))
-        root.addView(TextView(this).apply {
+        val remSec = section(root, "Auction reminders", openByDefault = false)
+        remSec.addView(TextView(this).apply {
             text = "Alarms before a monitored auction ends. Uses its own sound and volume."
             textSize = 12f
             setPadding(0, 0, 0, 4)
@@ -205,19 +208,19 @@ class MainActivity : Activity() {
             isChecked = store.reminderEnabled
             setOnCheckedChangeListener { _, v -> store.reminderEnabled = v }
         }
-        root.addView(reminderBox)
+        remSec.addView(reminderBox)
 
-        root.addView(label("minutes before the end (comma-separated, e.g. 60, 10, 2)"))
+        remSec.addView(label("minutes before the end (comma-separated, e.g. 60, 10, 2)"))
         reminderMinutesInput = input(store.reminderMinutes, "10").apply {
             inputType = InputType.TYPE_CLASS_TEXT
         }
-        root.addView(reminderMinutesInput)
+        remSec.addView(reminderMinutesInput)
 
         reminderSoundView = TextView(this).apply {
             textSize = 13f
             setPadding(0, 8, 0, 4)
         }
-        root.addView(reminderSoundView)
+        remSec.addView(reminderSoundView)
 
         val rrow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         rrow.addView(Button(this).apply {
@@ -232,13 +235,20 @@ class MainActivity : Activity() {
                 renderSound()
             }
         })
-        root.addView(rrow)
+        remSec.addView(rrow)
 
-        root.addView(label("reminder volume (%)"))
+        remSec.addView(label("reminder volume (%)"))
         reminderVolumeInput = input(store.reminderVolumePercent.toString(), "100").apply {
             inputType = InputType.TYPE_CLASS_NUMBER
         }
-        root.addView(reminderVolumeInput)
+        remSec.addView(reminderVolumeInput)
+
+        reminderVibrateBox = CheckBox(this).apply {
+            text = "vibrate for reminders"
+            isChecked = store.reminderVibrate
+            setOnCheckedChangeListener { _, v -> store.reminderVibrate = v }
+        }
+        remSec.addView(reminderVibrateBox)
 
         val rtrow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         rtrow.addView(Button(this).apply {
@@ -256,23 +266,23 @@ class MainActivity : Activity() {
                 Notifications.clearAlarm(this@MainActivity)
             }
         })
-        root.addView(rtrow)
+        remSec.addView(rtrow)
 
-        root.addView(header("Alarm rules"))
-        root.addView(label("\"Would match\" scan limit (0 = all finds)"))
+        val rulesSec = section(root, "Alarm rules", openByDefault = true)
+        rulesSec.addView(label("\"Would match\" scan limit (0 = all finds)"))
         previewLimitInput = input(store.previewLimit.toString(), "5000").apply {
             inputType = InputType.TYPE_CLASS_NUMBER
         }
-        root.addView(previewLimitInput)
-        root.addView(TextView(this).apply {
+        rulesSec.addView(previewLimitInput)
+        rulesSec.addView(TextView(this).apply {
             text = "A find triggers the alarm when it matches any rule. " +
                 "With no rules, nothing ever alarms."
             textSize = 12f
             setPadding(0, 0, 0, 12)
         })
         rulesBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        root.addView(rulesBox)
-        root.addView(Button(this).apply {
+        rulesSec.addView(rulesBox)
+        rulesSec.addView(Button(this).apply {
             text = "Add rule"
             setOnClickListener { editRule(null) }
         })
@@ -307,6 +317,7 @@ class MainActivity : Activity() {
         store.reminderMinutes = reminderMinutesInput.text.toString()
         store.reminderVolumePercent = reminderVolumeInput.text.toString().toIntOrNull() ?: 100
         reminderVolumeInput.setText(store.reminderVolumePercent.toString())
+        store.reminderVibrate = reminderVibrateBox.isChecked
         store.previewLimit = previewLimitInput.text.toString().toIntOrNull() ?: 5000
         previewLimitInput.setText(store.previewLimit.toString())
     }
@@ -545,6 +556,26 @@ class MainActivity : Activity() {
                     .setData(Uri.parse("package:$packageName"))
             )
         }.onFailure { toast("Could not open battery settings") }
+    }
+
+    private fun section(parent: LinearLayout, title: String, openByDefault: Boolean): LinearLayout {
+        val body = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = if (openByDefault) View.VISIBLE else View.GONE
+        }
+        val head = TextView(this).apply {
+            text = (if (openByDefault) "▾ " else "▸ ") + title
+            textSize = 18f
+            setPadding(0, 28, 0, 8)
+            setOnClickListener {
+                val open = body.visibility == View.VISIBLE
+                body.visibility = if (open) View.GONE else View.VISIBLE
+                text = (if (open) "▸ " else "▾ ") + title
+            }
+        }
+        parent.addView(head)
+        parent.addView(body)
+        return body
     }
 
     private fun header(t: String) = TextView(this).apply {
