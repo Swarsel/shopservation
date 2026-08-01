@@ -5,6 +5,7 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -31,6 +32,9 @@ class MainActivity : Activity() {
     private lateinit var emailInput: EditText
     private lateinit var passwordInput: EditText
     private lateinit var intervalInput: EditText
+    private lateinit var volumeInput: EditText
+    private lateinit var vibrateBox: CheckBox
+    private lateinit var soundView: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,7 +56,7 @@ class MainActivity : Activity() {
         root.addView(statusView)
 
         root.addView(label("shopservatory server"))
-        urlInput = input(store.serverUrl, "https://shopservatory.swarsel.win")
+        urlInput = input(store.serverUrl, "https://shopservatory.example.com")
         root.addView(urlInput)
 
         root.addView(label("email"))
@@ -100,9 +104,71 @@ class MainActivity : Activity() {
                 }
             }
         })
-        row2.addView(Button(this).apply {
-            text = "Test alarm"
+        root.addView(row2)
+
+        root.addView(Button(this).apply {
+            text = "Ignore battery optimisation"
+            setOnClickListener { requestBatteryExemption() }
+        })
+
+        root.addView(header("Alarm sound"))
+        soundView = TextView(this).apply {
+            textSize = 13f
+            setPadding(0, 0, 0, 4)
+        }
+        root.addView(soundView)
+
+        val srow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        srow.addView(Button(this).apply {
+            text = "Choose sound"
+            setOnClickListener { pickSound() }
+        })
+        srow.addView(Button(this).apply {
+            text = "Built-in siren"
             setOnClickListener {
+                store.alarmSoundUri = ""
+                store.alarmSoundLabel = "Built-in siren"
+                renderSound()
+                toast("Using the built-in siren")
+            }
+        })
+        root.addView(srow)
+
+        root.addView(label("volume (% of the alarm stream's maximum)"))
+        volumeInput = input(store.alarmVolumePercent.toString(), "100").apply {
+            inputType = InputType.TYPE_CLASS_NUMBER
+        }
+        root.addView(volumeInput)
+
+        vibrateBox = CheckBox(this).apply {
+            text = "vibrate as well"
+            isChecked = store.alarmVibrate
+            setOnCheckedChangeListener { _, v -> store.alarmVibrate = v }
+        }
+        root.addView(vibrateBox)
+
+        val trow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        trow.addView(Button(this).apply {
+            text = "Play test alarm"
+            setOnClickListener {
+                saveAlarmSettings()
+                AlarmPlayer.start(this@MainActivity)
+                toast("Playing — press Stop when you have heard enough")
+            }
+        })
+        trow.addView(Button(this).apply {
+            text = "Stop"
+            setOnClickListener {
+                AlarmPlayer.stop(this@MainActivity)
+                Notifications.clearAlarm(this@MainActivity)
+            }
+        })
+        root.addView(trow)
+
+        root.addView(Button(this).apply {
+            text = "Test full alarm (notification + screen)"
+            setOnClickListener {
+                saveAlarmSettings()
                 Notifications.fireAlarm(
                     this@MainActivity,
                     listOf(
@@ -114,12 +180,6 @@ class MainActivity : Activity() {
                     ),
                 )
             }
-        })
-        root.addView(row2)
-
-        root.addView(Button(this).apply {
-            text = "Ignore battery optimisation"
-            setOnClickListener { requestBatteryExemption() }
         })
 
         root.addView(header("Alarm rules"))
@@ -138,11 +198,59 @@ class MainActivity : Activity() {
 
         setContentView(ScrollView(this).apply { addView(root) })
         renderRules()
+        renderSound()
     }
 
     override fun onResume() {
         super.onResume()
         statusView.text = store.lastStatus
+    }
+
+    override fun onPause() {
+        super.onPause()
+        saveAlarmSettings()
+    }
+
+    private fun renderSound() {
+        soundView.text = "sound: ${store.alarmSoundLabel}" +
+            if (store.alarmSoundUri.isBlank()) " (loud, deliberately unpleasant)" else ""
+    }
+
+    private fun saveAlarmSettings() {
+        store.alarmVolumePercent = volumeInput.text.toString().toIntOrNull() ?: 100
+        store.alarmVibrate = vibrateBox.isChecked
+        volumeInput.setText(store.alarmVolumePercent.toString())
+    }
+
+    private fun pickSound() {
+        val current = store.alarmSoundUri.takeIf { it.isNotBlank() }?.let { Uri.parse(it) }
+        val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+            putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Alarm sound")
+            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, current)
+        }
+        runCatching { startActivityForResult(intent, REQ_SOUND) }
+            .onFailure { toast("No sound picker available on this device") }
+    }
+
+    @Deprecated("startActivityForResult is the simplest option for a plain Activity")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        @Suppress("DEPRECATION")
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQ_SOUND || resultCode != RESULT_OK) return
+        val uri: Uri? = data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+        if (uri == null) {
+            store.alarmSoundUri = ""
+            store.alarmSoundLabel = "Built-in siren"
+        } else {
+            store.alarmSoundUri = uri.toString()
+            store.alarmSoundLabel = runCatching {
+                RingtoneManager.getRingtone(this, uri)?.getTitle(this)
+            }.getOrNull() ?: "Custom sound"
+        }
+        renderSound()
     }
 
     private fun saveSettings() {
@@ -291,4 +399,8 @@ class MainActivity : Activity() {
     }
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+
+    private companion object {
+        const val REQ_SOUND = 42
+    }
 }

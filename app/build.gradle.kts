@@ -11,15 +11,10 @@ android {
         applicationId = "win.swarsel.shopservation"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
     }
 
-    // Release signing comes from the environment so no key material is ever
-    // committed. Without SHOPSERVATION_KEYSTORE set, `assembleRelease` still
-    // builds but stays unsigned — deliberately, so a missing key fails loudly
-    // at publish time rather than silently shipping a debug-signed APK that
-    // could never be upgraded to a properly signed one.
     val keystorePath = System.getenv("SHOPSERVATION_KEYSTORE")
     signingConfigs {
         if (keystorePath != null) {

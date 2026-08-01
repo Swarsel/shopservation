@@ -10,9 +10,13 @@ data class Listing(
     val price: Double,
     val currency: String,
     val url: String,
-    val saleType: String,
+    val imageUrl: String = "",
+    val saleType: String = "",
 ) {
     val key: String get() = "$source/$externalId"
+
+    val priceLabel: String
+        get() = if (price > 0) "${Rule.fmtPrice(price)} $currency".trim() else ""
 
     companion object {
         fun fromJson(o: JSONObject) = Listing(
@@ -20,9 +24,10 @@ data class Listing(
             searchId = o.optLong("searchId"),
             externalId = o.optString("externalId"),
             title = o.optString("title"),
-            price = o.optDouble("priceValue", 0.0),
+            price = if (o.has("priceValue")) o.optDouble("priceValue", 0.0) else o.optDouble("price", 0.0),
             currency = o.optString("currency"),
             url = o.optString("url"),
+            imageUrl = o.optString("imageUrl"),
             saleType = o.optString("saleType"),
         )
     }

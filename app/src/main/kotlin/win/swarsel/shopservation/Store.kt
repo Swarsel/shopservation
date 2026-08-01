@@ -37,6 +37,22 @@ class Store(context: Context) {
         get() = prefs.getString("lastStatus", "never polled") ?: "never polled"
         set(v) = prefs.edit().putString("lastStatus", v).apply()
 
+    var alarmSoundUri: String
+        get() = prefs.getString("alarmSoundUri", "") ?: ""
+        set(v) = prefs.edit().putString("alarmSoundUri", v).apply()
+
+    var alarmSoundLabel: String
+        get() = prefs.getString("alarmSoundLabel", "Built-in siren") ?: "Built-in siren"
+        set(v) = prefs.edit().putString("alarmSoundLabel", v).apply()
+
+    var alarmVolumePercent: Int
+        get() = prefs.getInt("alarmVolumePercent", 100)
+        set(v) = prefs.edit().putInt("alarmVolumePercent", v.coerceIn(10, 100)).apply()
+
+    var alarmVibrate: Boolean
+        get() = prefs.getBoolean("alarmVibrate", true)
+        set(v) = prefs.edit().putBoolean("alarmVibrate", v).apply()
+
     fun configured(): Boolean =
         serverUrl.isNotBlank() && (token.isNotBlank() || (email.isNotBlank() && password.isNotBlank()))
 
@@ -96,26 +112,23 @@ class Store(context: Context) {
             arr.put(JSONObject().apply {
                 put("title", l.title)
                 put("source", l.source)
+                put("searchId", l.searchId)
+                put("externalId", l.externalId)
                 put("price", l.price)
                 put("currency", l.currency)
                 put("url", l.url)
+                put("imageUrl", l.imageUrl)
+                put("saleType", l.saleType)
             })
         }
         prefs.edit().putString("lastAlarm", arr.toString()).apply()
     }
 
-    fun lastAlarmSummary(): List<Triple<String, String, String>> {
+    fun lastAlarm(): List<Listing> {
         val raw = prefs.getString("lastAlarm", "[]") ?: "[]"
         val arr = runCatching { JSONArray(raw) }.getOrElse { JSONArray() }
-        return (0 until arr.length()).map { i ->
-            val o = arr.getJSONObject(i)
-            val price = o.optDouble("price", 0.0)
-            val cur = o.optString("currency")
-            Triple(
-                o.optString("title"),
-                if (price > 0) "${Rule.fmtPrice(price)} $cur".trim() else "",
-                o.optString("url"),
-            )
+        return (0 until arr.length()).mapNotNull { i ->
+            runCatching { Listing.fromJson(arr.getJSONObject(i)) }.getOrNull()
         }
     }
 }

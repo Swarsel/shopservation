@@ -2,7 +2,7 @@
 
 Android companion for [shopservatory](https://github.com/Swarsel/shopservatory).
 
-## BSetup
+## Setup
 
 ```sh
 SHOPSERVATION_KEYSTORE_PASS_FILE=<password file> nix run .#init-keys
