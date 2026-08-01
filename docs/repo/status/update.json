@@ -1,0 +1,32 @@
+{
+  "antiFeatures": {
+    "NonFreeNet": {
+      "apps": [
+        "win.swarsel.shopservation"
+      ]
+    }
+  },
+  "apksigner": "/nix/store/2w72vk4ddypk7gm77gnd975d51yrdkz5-apksigner-35.0.6/bin/apksigner",
+  "archivePolicy0": [],
+  "commandLine": [
+    "/nix/store/q7j15gazpawgb9q0xfmnq0r5bc38a7rx-fdroidserver-2.4.0/bin/fdroid update",
+    "--create-metadata",
+    "--pretty"
+  ],
+  "disabled": [],
+  "endTimestamp": 1785606710535,
+  "failedBuilds": {},
+  "jarsigner": "/nix/store/2y0qz1r84ckgmmrnfvx9bbysnyn1zb61-openjdk-17.0.20+8/bin/jarsigner",
+  "keytool": "/nix/store/2y0qz1r84ckgmmrnfvx9bbysnyn1zb61-openjdk-17.0.20+8/bin/keytool",
+  "needsUpdate": [
+    "win.swarsel.shopservation"
+  ],
+  "noPackages": [
+    "win.swarsel.shopservation"
+  ],
+  "noUpdateCheck": [
+    "win.swarsel.shopservation"
+  ],
+  "startTimestamp": 1785603106000,
+  "subcommand": "update"
+}

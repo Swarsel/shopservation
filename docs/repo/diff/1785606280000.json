@@ -1,0 +1,71 @@
+{
+  "repo": {
+    "timestamp": 1785606707000
+  },
+  "packages": {
+    "win.swarsel.shopservation": {
+      "versions": {
+        "5ddeb38c090f6b56cb6595c821f95b0b84927628cd2f7114f16901f7220c9643": null,
+        "8a75efbe9827f81bd507d77d80c7d1bef3a40034c56fade04bec3cae1df9cbc6": {
+          "added": 1785606114000,
+          "file": {
+            "name": "/win.swarsel.shopservation.apk",
+            "sha256": "8a75efbe9827f81bd507d77d80c7d1bef3a40034c56fade04bec3cae1df9cbc6",
+            "size": 4897382
+          },
+          "manifest": {
+            "versionName": "0.1.0",
+            "versionCode": 1,
+            "usesSdk": {
+              "minSdkVersion": 26,
+              "targetSdkVersion": 34
+            },
+            "signer": {
+              "sha256": [
+                "850b274ad1d8719c96eb4eee1860c0c6cd2af4eaeb1d322fe61624da8897d1bf"
+              ]
+            },
+            "usesPermission": [
+              {
+                "name": "android.permission.INTERNET"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_DATA_SYNC"
+              },
+              {
+                "name": "android.permission.POST_NOTIFICATIONS"
+              },
+              {
+                "name": "android.permission.RECEIVE_BOOT_COMPLETED"
+              },
+              {
+                "name": "android.permission.VIBRATE"
+              },
+              {
+                "name": "android.permission.WAKE_LOCK"
+              },
+              {
+                "name": "android.permission.USE_FULL_SCREEN_INTENT"
+              },
+              {
+                "name": "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+              },
+              {
+                "name": "android.permission.ACCESS_NETWORK_STATE"
+              },
+              {
+                "name": "win.swarsel.shopservation.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+              }
+            ]
+          },
+          "antiFeatures": {
+            "NonFreeNet": {}
+          }
+        }
+      }
+    }
+  }
+}

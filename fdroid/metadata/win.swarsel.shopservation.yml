@@ -1,0 +1,30 @@
+Categories:
+  - System
+License: MIT
+AuthorName: Leon Schwarzäugl
+SourceCode: https://github.com/Swarsel/shopservation
+
+Name: shopservation
+Summary: Loud alarm for matching shopservatory finds
+
+Description: |
+  Companion app for a self-hosted shopservatory instance.
+
+  shopservation polls your shopservatory listing feed and sounds a loud alarm
+  when a new find matches a rule you configure in the app. Rules match on title
+  keywords, exclusion keywords, a maximum price (per currency) and source.
+
+  The alarm plays on the alarm audio stream, so it is audible even when the
+  phone is on silent or vibrate, and shows a full-screen stop screen over the
+  lock screen.
+
+  All alarm logic lives in the app; the server needs no changes.
+
+AntiFeatures:
+  - NonFreeNet
+
+RepoType: git
+Repo: https://github.com/Swarsel/shopservation
+
+AutoUpdateMode: None
+UpdateCheckMode: None
