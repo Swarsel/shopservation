@@ -19,11 +19,13 @@ object Matcher {
         val srcs = terms(rule.sources)
         if (srcs.isNotEmpty() && !srcs.contains(listing.source.lowercase())) return false
 
+        val min = rule.minPrice
         val max = rule.maxPrice
-        if (max != null) {
+        if (min != null || max != null) {
             if (listing.price <= 0.0) return false
             if (rule.currency.isNotBlank() && !rule.currency.equals(listing.currency, ignoreCase = true)) return false
-            if (listing.price > max) return false
+            if (min != null && listing.price < min) return false
+            if (max != null && listing.price > max) return false
         }
         return true
     }

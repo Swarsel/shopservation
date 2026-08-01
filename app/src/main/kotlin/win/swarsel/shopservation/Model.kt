@@ -71,6 +71,7 @@ data class Rule(
     val enabled: Boolean = true,
     val keywords: String = "",
     val excludeKeywords: String = "",
+    val minPrice: Double? = null,
     val maxPrice: Double? = null,
     val currency: String = "",
     val sources: String = "",
@@ -80,6 +81,7 @@ data class Rule(
         put("enabled", enabled)
         put("keywords", keywords)
         put("excludeKeywords", excludeKeywords)
+        if (minPrice != null) put("minPrice", minPrice) else put("minPrice", JSONObject.NULL)
         if (maxPrice != null) put("maxPrice", maxPrice) else put("maxPrice", JSONObject.NULL)
         put("currency", currency)
         put("sources", sources)
@@ -89,7 +91,14 @@ data class Rule(
         val bits = mutableListOf<String>()
         bits += if (keywords.isBlank()) "any title" else "“$keywords”"
         if (excludeKeywords.isNotBlank()) bits += "not “$excludeKeywords”"
-        if (maxPrice != null) bits += "≤ ${fmtPrice(maxPrice)}${if (currency.isNotBlank()) " $currency" else ""}"
+        val cur = if (currency.isNotBlank()) " $currency" else ""
+        if (minPrice != null && maxPrice != null) {
+            bits += "${fmtPrice(minPrice)}–${fmtPrice(maxPrice)}$cur"
+        } else if (minPrice != null) {
+            bits += "≥ ${fmtPrice(minPrice)}$cur"
+        } else if (maxPrice != null) {
+            bits += "≤ ${fmtPrice(maxPrice)}$cur"
+        }
         if (sources.isNotBlank()) bits += "on $sources"
         return bits.joinToString(" · ")
     }
@@ -100,6 +109,7 @@ data class Rule(
             enabled = o.optBoolean("enabled", true),
             keywords = o.optString("keywords"),
             excludeKeywords = o.optString("excludeKeywords"),
+            minPrice = if (o.isNull("minPrice")) null else o.optDouble("minPrice"),
             maxPrice = if (o.isNull("maxPrice")) null else o.optDouble("maxPrice"),
             currency = o.optString("currency"),
             sources = o.optString("sources"),

@@ -74,6 +74,73 @@ class MatcherTest {
     }
 
     @Test
+    fun `min price excludes anything cheaper`() {
+        val rule = Rule(id = 1, minPrice = 50.0, currency = "EUR")
+        assertTrue(Matcher.matches(rule, listing("card", price = 80.0, currency = "EUR")))
+        assertFalse(Matcher.matches(rule, listing("card", price = 30.0, currency = "EUR")))
+    }
+
+    @Test
+    fun `min price boundary is inclusive`() {
+        val rule = Rule(id = 1, minPrice = 50.0, currency = "EUR")
+        assertTrue(Matcher.matches(rule, listing("card", price = 50.0, currency = "EUR")))
+    }
+
+    @Test
+    fun `min price respects currency and never compares across currencies`() {
+        val rule = Rule(id = 1, minPrice = 50.0, currency = "EUR")
+        assertFalse(Matcher.matches(rule, listing("card", price = 8100.0, currency = "JPY")))
+    }
+
+    @Test
+    fun `min price skips listings with unknown price`() {
+        val rule = Rule(id = 1, minPrice = 50.0, currency = "EUR")
+        assertFalse(Matcher.matches(rule, listing("card", price = 0.0, currency = "EUR")))
+    }
+
+    @Test
+    fun `min and max together form an inclusive range`() {
+        val rule = Rule(id = 1, minPrice = 50.0, maxPrice = 100.0, currency = "EUR")
+        assertTrue(Matcher.matches(rule, listing("card", price = 50.0, currency = "EUR")))
+        assertTrue(Matcher.matches(rule, listing("card", price = 75.0, currency = "EUR")))
+        assertTrue(Matcher.matches(rule, listing("card", price = 100.0, currency = "EUR")))
+        assertFalse(Matcher.matches(rule, listing("card", price = 49.0, currency = "EUR")))
+        assertFalse(Matcher.matches(rule, listing("card", price = 101.0, currency = "EUR")))
+    }
+
+    @Test
+    fun `no min price means cheap listings still match`() {
+        val rule = Rule(id = 1, maxPrice = 100.0, currency = "EUR")
+        assertTrue(Matcher.matches(rule, listing("card", price = 1.0, currency = "EUR")))
+    }
+
+    @Test
+    fun `a rule stored before min price existed still loads and matches`() {
+        val legacy = org.json.JSONObject(
+            """{"id":7,"enabled":true,"keywords":"card","excludeKeywords":"","maxPrice":100.0,"currency":"EUR","sources":""}"""
+        )
+        val rule = Rule.fromJson(legacy)
+        assertEquals(null, rule.minPrice)
+        assertTrue(Matcher.matches(rule, listing("card", price = 5.0, currency = "EUR")))
+        assertFalse(Matcher.matches(rule, listing("card", price = 500.0, currency = "EUR")))
+    }
+
+    @Test
+    fun `min price survives a json round trip`() {
+        val rule = Rule(id = 3, minPrice = 12.5, maxPrice = 99.0, currency = "EUR")
+        val back = Rule.fromJson(org.json.JSONObject(rule.toJson().toString()))
+        assertEquals(12.5, back.minPrice)
+        assertEquals(99.0, back.maxPrice)
+    }
+
+    @Test
+    fun `describe reports each price bound shape`() {
+        assertTrue(Rule(id = 1, minPrice = 5.0, currency = "EUR").describe().contains("≥ 5 EUR"))
+        assertTrue(Rule(id = 1, maxPrice = 5.0, currency = "EUR").describe().contains("≤ 5 EUR"))
+        assertTrue(Rule(id = 1, minPrice = 5.0, maxPrice = 9.0, currency = "EUR").describe().contains("5–9 EUR"))
+    }
+
+    @Test
     fun `no max price means price is ignored`() {
         val rule = Rule(id = 1, keywords = "card")
         assertTrue(Matcher.matches(rule, listing("card", price = 999999.0, currency = "JPY")))

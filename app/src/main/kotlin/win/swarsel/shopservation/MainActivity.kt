@@ -465,6 +465,9 @@ class MainActivity : Activity() {
         }
         val kw = input(existing?.keywords ?: "", "pikachu, psa 10")
         val ex = input(existing?.excludeKeywords ?: "", "proxy, reprint")
+        val min = input(existing?.minPrice?.let { Rule.fmtPrice(it) } ?: "", "e.g. 500").apply {
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+        }
         val max = input(existing?.maxPrice?.let { Rule.fmtPrice(it) } ?: "", "e.g. 20000").apply {
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
         }
@@ -473,15 +476,21 @@ class MainActivity : Activity() {
 
         box.addView(label("title must contain ALL of (comma-separated)")); box.addView(kw)
         box.addView(label("reject if title contains ANY of")); box.addView(ex)
+        box.addView(label("min price")); box.addView(min)
         box.addView(label("max price")); box.addView(max)
-        box.addView(label("price currency (required with max price)")); box.addView(cur)
+        box.addView(label("price currency (required with a price limit)")); box.addView(cur)
         box.addView(label("only these sources")); box.addView(src)
 
         fun currentRule(): Rule? {
+            val minVal = min.text.toString().trim().toDoubleOrNull()
             val maxVal = max.text.toString().trim().toDoubleOrNull()
             val currency = cur.text.toString().trim().uppercase()
-            if (maxVal != null && currency.isBlank()) {
-                toast("A max price needs a currency — listings come in JPY, EUR and USD")
+            if ((minVal != null || maxVal != null) && currency.isBlank()) {
+                toast("A price limit needs a currency — listings come in JPY, EUR and USD")
+                return null
+            }
+            if (minVal != null && maxVal != null && minVal > maxVal) {
+                toast("The min price is above the max price, so nothing can match")
                 return null
             }
             return Rule(
@@ -489,6 +498,7 @@ class MainActivity : Activity() {
                 enabled = existing?.enabled ?: true,
                 keywords = kw.text.toString().trim(),
                 excludeKeywords = ex.text.toString().trim(),
+                minPrice = minVal,
                 maxPrice = maxVal,
                 currency = currency,
                 sources = src.text.toString().trim(),
