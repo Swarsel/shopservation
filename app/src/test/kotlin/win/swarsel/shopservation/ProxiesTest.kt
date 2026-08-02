@@ -44,13 +44,32 @@ class ProxiesTest {
             "paypayfleamarket" to "paypay",
             "rakuma" to "rakuma",
             "snkrdunk" to "snkrdunk",
-            "yahooauctions" to "yahoo",
         )
         expected.forEach { (source, mall) ->
             val dz = Proxies.doorzoUrl(listing(source, "https://example.com/item/1"))
             assertTrue("$source should be supported", dz != null)
             assertTrue("$source -> /mall/$mall/", dz!!.contains("/mall/$mall/detail/"))
         }
+    }
+
+    @Test
+    fun `yahoo auctions gets a buyee link instead of doorzo`() {
+        val l = listing("yahooauctions", "https://zenmarket.jp/en/auction.aspx?itemCode=k123", "k123")
+        assertNull("doorzo has no yahoo mall", Proxies.doorzoUrl(l))
+        assertEquals("https://buyee.jp/item/yahoo/auction/k123", Proxies.buyeeUrl(l))
+        assertTrue("yahoo is still a supported proxy source", Proxies.supports("yahooauctions"))
+    }
+
+    @Test
+    fun `only yahoo auctions gets a buyee link`() {
+        listOf("mercari", "paypayfleamarket", "rakuma", "snkrdunk", "surugaya", "ebay").forEach { s ->
+            assertNull(s, Proxies.buyeeUrl(listing(s, "https://example.com/x", "id1")))
+        }
+    }
+
+    @Test
+    fun `a yahoo listing without an id gets no buyee link`() {
+        assertNull(Proxies.buyeeUrl(listing("yahooauctions", "https://example.com/x", "")))
     }
 
     @Test
@@ -82,7 +101,7 @@ class ProxiesTest {
             "https://page.auctions.yahoo.co.jp/jp/auction/k123",
             Proxies.nativeUrl(l),
         )
-        assertFalse(Proxies.doorzoUrl(l)!!.contains("zenmarket"))
+        assertFalse(Proxies.buyeeUrl(l)!!.contains("zenmarket"))
     }
 
     @Test

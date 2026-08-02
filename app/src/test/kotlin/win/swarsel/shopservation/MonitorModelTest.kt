@@ -43,3 +43,29 @@ class MonitorModelTest {
         assertTrue(Monitor.fromJson(o).archived)
     }
 }
+
+class MonitorBuyeeTest {
+    @Test
+    fun `monitor json carries a buyee url`() {
+        val o = JSONObject(
+            """{"id":7,"source":"yahooauctions","title":"card","url":"https://auctions.yahoo.co.jp/jp/auction/k1",
+                "buyeeUrl":"https://buyee.jp/item/yahoo/auction/k1",
+                "price":"JPY 1200","status":"active","saleType":"auction","ends":"","archived":false}"""
+        )
+        val m = Monitor.fromJson(o)
+        assertEquals("https://buyee.jp/item/yahoo/auction/k1", m.buyeeUrl)
+        assertEquals("", m.doorzoUrl)
+    }
+
+    @Test
+    fun `a monitor without a buyee url parses`() {
+        val o = JSONObject(
+            """{"id":1,"source":"mercari","title":"t","url":"u","price":"","status":"active",
+                "saleType":"","ends":"","archived":false,
+                "doorzoUrl":"https://www.doorzo.com/en/mall/mercari/detail/ab"}"""
+        )
+        val m = Monitor.fromJson(o)
+        assertEquals("", m.buyeeUrl)
+        assertTrue(m.doorzoUrl.isNotBlank())
+    }
+}

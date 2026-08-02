@@ -259,6 +259,12 @@ class FindsActivity : Activity() {
                 setOnClickListener { open(dz) }
             })
         }
+        Proxies.buyeeUrl(item)?.let { by ->
+            buttons.addView(Button(this).apply {
+                text = "Buyee"
+                setOnClickListener { open(by) }
+            })
+        }
         if (buttons.childCount > 0) col.addView(buttons)
 
         row.addView(col)

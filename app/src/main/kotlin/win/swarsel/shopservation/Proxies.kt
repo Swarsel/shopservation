@@ -8,10 +8,21 @@ object Proxies {
         "paypayfleamarket" to "paypay",
         "rakuma" to "rakuma",
         "snkrdunk" to "snkrdunk",
-        "yahooauctions" to "yahoo",
     )
 
-    fun supports(source: String): Boolean = doorzoMalls.containsKey(source.lowercase())
+    private val buyeeItemPaths = mapOf(
+        "yahooauctions" to "item/yahoo/auction/",
+    )
+
+    fun supports(source: String): Boolean =
+        doorzoMalls.containsKey(source.lowercase()) || buyeeItemPaths.containsKey(source.lowercase())
+
+    fun buyeeUrl(listing: Listing): String? {
+        val path = buyeeItemPaths[listing.source.lowercase()] ?: return null
+        val id = listing.externalId.trim()
+        if (id.isEmpty()) return null
+        return "https://buyee.jp/$path$id"
+    }
 
     fun doorzoUrl(listing: Listing): String? {
         val mall = doorzoMalls[listing.source.lowercase()] ?: return null

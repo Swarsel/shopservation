@@ -156,6 +156,12 @@ class MonitorsActivity : Activity() {
                 setOnClickListener { open(m.doorzoUrl) }
             })
         }
+        if (m.buyeeUrl.isNotBlank()) {
+            buttons.addView(Button(this).apply {
+                text = "Buyee"
+                setOnClickListener { open(m.buyeeUrl) }
+            })
+        }
         if (buttons.childCount > 0) col.addView(buttons)
 
         row.addView(col)
