@@ -2,8 +2,6 @@ package win.swarsel.shopservation
 
 import android.app.Activity
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
@@ -15,19 +13,30 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import java.net.HttpURLConnection
-import java.net.URL
-import kotlin.concurrent.thread
 
 class AlarmActivity : Activity() {
 
     companion object {
         const val ACTION_REMINDER = "win.swarsel.shopservation.SHOW_REMINDER"
+        const val ACTION_HISTORY = "win.swarsel.shopservation.SHOW_HISTORY"
     }
+
+    private var silenced = false
+    private var historyMode = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        render(intent)
+    }
 
+    override fun onNewIntent(newIntent: Intent?) {
+        super.onNewIntent(newIntent)
+        if (newIntent != null) intent = newIntent
+        silenced = false
+        render(intent)
+    }
+
+    private fun render(intent: Intent?) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
@@ -40,28 +49,49 @@ class AlarmActivity : Activity() {
         }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
+        historyMode = intent?.action == ACTION_HISTORY
         val reminderMode = intent?.action == ACTION_REMINDER
         val store = Store(this)
+        if (historyMode) silenced = true
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor(if (reminderMode) "#78350f" else "#7f1d1d"))
+            setBackgroundColor(
+                Color.parseColor(
+                    when {
+                        historyMode -> "#1e3a5f"
+                        reminderMode -> "#78350f"
+                        else -> "#7f1d1d"
+                    }
+                )
+            )
             setPadding(40, 72, 40, 40)
         }
 
         root.addView(TextView(this).apply {
-            text = if (reminderMode) "⏳ auction ending soon" else "🔔 shopservatory match"
+            text = when {
+                historyMode -> "🕘 recent matches"
+                reminderMode -> "⏳ auction ending soon"
+                else -> "🔔 shopservatory match"
+            }
             textSize = 24f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
         })
 
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        val items = if (reminderMode) store.lastReminder() else store.lastAlarm()
+        val items = when {
+            historyMode -> store.alarmHistory()
+            reminderMode -> store.lastReminder()
+            else -> store.lastAlarm()
+        }
         if (items.isEmpty()) {
             list.addView(TextView(this).apply {
-                text = if (reminderMode) "\nA monitored auction is ending soon."
-                    else "\nA matching listing was found."
+                text = when {
+                    historyMode -> "\nNo alarm matches recorded yet."
+                    reminderMode -> "\nA monitored auction is ending soon."
+                    else -> "\nA matching listing was found."
+                }
                 setTextColor(Color.WHITE)
             })
         } else {
@@ -75,11 +105,16 @@ class AlarmActivity : Activity() {
         })
 
         root.addView(Button(this).apply {
-            text = "STOP ALARM"
+            text = if (historyMode) "CLOSE" else "SILENCE ALARM"
             textSize = 20f
             setOnClickListener {
-                stopAlarm()
-                finish()
+                if (!silenced) {
+                    silenced = true
+                    stopAlarm()
+                    text = "CLOSE"
+                } else {
+                    finish()
+                }
             }
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -141,31 +176,14 @@ class AlarmActivity : Activity() {
     }
 
     private fun loadThumb(url: String, into: ImageView) {
-        thread(isDaemon = true) {
-            val bmp = runCatching { fetchBitmap(url) }.getOrNull() ?: return@thread
-            runOnUiThread { into.setImageBitmap(bmp) }
-        }
-    }
-
-    private fun fetchBitmap(url: String): Bitmap? {
-        val conn = (URL(url).openConnection() as HttpURLConnection).apply {
-            connectTimeout = 8000
-            readTimeout = 12000
-            instanceFollowRedirects = true
-            setRequestProperty("User-Agent", "Mozilla/5.0")
-        }
-        return try {
-            if (conn.responseCode != 200) return null
-            conn.inputStream.use { s ->
-                BitmapFactory.decodeStream(s, null, BitmapFactory.Options().apply { inSampleSize = 2 })
-            }
-        } finally {
-            conn.disconnect()
-        }
+        Thumbs.load(this, url, into, sample = 2)
     }
 
     private fun open(url: String) {
-        stopAlarm()
+        if (!historyMode) {
+            silenced = true
+            stopAlarm()
+        }
         runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
     }
 
@@ -175,7 +193,7 @@ class AlarmActivity : Activity() {
     }
 
     override fun onDestroy() {
-        stopAlarm()
+        if (!historyMode) stopAlarm()
         super.onDestroy()
     }
 }

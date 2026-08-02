@@ -1,21 +1,21 @@
 {
   "repo": {
-    "timestamp": 1785631349000
+    "timestamp": 1785634394000
   },
   "packages": {
     "win.swarsel.shopservation": {
       "versions": {
         "13924c5260adc58d0f007cdf6778898012d74e6a2cdc8e87335bd266a3947961": null,
-        "105bfe2ea26017199caff95c44b96b1748b75b31ae2ca56a6c534b9719e0ad99": {
+        "1f127bb5ad12b0e41ded4ec79081db4924e76f60b532b36657c642a1da9e5a5a": {
           "added": 1785606114000,
           "file": {
             "name": "/win.swarsel.shopservation.apk",
-            "sha256": "105bfe2ea26017199caff95c44b96b1748b75b31ae2ca56a6c534b9719e0ad99",
-            "size": 4926742
+            "sha256": "1f127bb5ad12b0e41ded4ec79081db4924e76f60b532b36657c642a1da9e5a5a",
+            "size": 4928230
           },
           "manifest": {
-            "versionName": "0.7.0",
-            "versionCode": 7,
+            "versionName": "0.8.0",
+            "versionCode": 8,
             "usesSdk": {
               "minSdkVersion": 26,
               "targetSdkVersion": 34

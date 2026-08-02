@@ -121,10 +121,22 @@ class MainActivity : Activity() {
             setOnClickListener { startActivity(Intent(this@MainActivity, FindsActivity::class.java)) }
         })
         row3.addView(Button(this).apply {
+            text = "Recent matches"
+            setOnClickListener {
+                startActivity(
+                    Intent(this@MainActivity, AlarmActivity::class.java)
+                        .setAction(AlarmActivity.ACTION_HISTORY)
+                )
+            }
+        })
+        root.addView(row3)
+
+        val row4 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        row4.addView(Button(this).apply {
             text = "Ignore battery optimisation"
             setOnClickListener { requestBatteryExemption() }
         })
-        root.addView(row3)
+        root.addView(row4)
 
         val soundSec = section(root, "Alarm sound", openByDefault = false)
         soundView = TextView(this).apply {

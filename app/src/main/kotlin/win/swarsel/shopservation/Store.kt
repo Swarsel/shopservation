@@ -6,6 +6,16 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class Store(context: Context) {
+    companion object {
+        const val ALARM_HISTORY_MAX = 100
+
+        fun mergeHistory(fresh: List<Listing>, existing: List<Listing>): List<Listing> {
+            val seen = existing.mapTo(mutableSetOf()) { it.key }
+            val newest = fresh.filterNot { it.key in seen }
+            return (newest + existing).take(ALARM_HISTORY_MAX)
+        }
+    }
+
     private val prefs: SharedPreferences =
         context.getSharedPreferences("shopservation", Context.MODE_PRIVATE)
 
@@ -232,8 +242,28 @@ class Store(context: Context) {
     }
 
     fun setLastAlarm(items: List<Listing>) {
+        prefs.edit().putString("lastAlarm", encodeListings(items.take(20))).apply()
+        appendAlarmHistory(items)
+    }
+
+    fun lastAlarm(): List<Listing> = decodeListings(prefs.getString("lastAlarm", "[]"))
+
+    fun alarmHistory(): List<Listing> = decodeListings(prefs.getString("alarmHistory", "[]"))
+
+    fun clearAlarmHistory() {
+        prefs.edit().remove("alarmHistory").apply()
+    }
+
+    private fun appendAlarmHistory(items: List<Listing>) {
+        if (items.isEmpty()) return
+        prefs.edit()
+            .putString("alarmHistory", encodeListings(mergeHistory(items, alarmHistory())))
+            .apply()
+    }
+
+    private fun encodeListings(items: List<Listing>): String {
         val arr = JSONArray()
-        items.take(20).forEach { l ->
+        items.forEach { l ->
             arr.put(JSONObject().apply {
                 put("title", l.title)
                 put("source", l.source)
@@ -246,12 +276,11 @@ class Store(context: Context) {
                 put("saleType", l.saleType)
             })
         }
-        prefs.edit().putString("lastAlarm", arr.toString()).apply()
+        return arr.toString()
     }
 
-    fun lastAlarm(): List<Listing> {
-        val raw = prefs.getString("lastAlarm", "[]") ?: "[]"
-        val arr = runCatching { JSONArray(raw) }.getOrElse { JSONArray() }
+    private fun decodeListings(raw: String?): List<Listing> {
+        val arr = runCatching { JSONArray(raw ?: "[]") }.getOrElse { JSONArray() }
         return (0 until arr.length()).mapNotNull { i ->
             runCatching { Listing.fromJson(arr.getJSONObject(i)) }.getOrNull()
         }
