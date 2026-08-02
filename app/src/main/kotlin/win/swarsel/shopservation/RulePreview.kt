@@ -94,6 +94,7 @@ object RulePreview {
         row.addView(thumb)
         if (l.imageUrl.isNotBlank() && context is Activity) {
             Thumbs.load(context, l.imageUrl, thumb)
+            thumb.setOnClickListener { Thumbs.showEnlarged(context, l.imageUrl) }
         }
         row.addView(TextView(context).apply {
             text = l.title +

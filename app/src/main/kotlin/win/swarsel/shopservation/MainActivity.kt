@@ -462,8 +462,15 @@ class MainActivity : Activity() {
             row.addView(Button(this).apply {
                 text = "✕"
                 setOnClickListener {
-                    store.deleteRule(rule.id)
-                    renderRules()
+                    AlertDialog.Builder(this@MainActivity)
+                        .setTitle("Delete rule?")
+                        .setMessage(rule.describe())
+                        .setPositiveButton("Delete") { _, _ ->
+                            store.deleteRule(rule.id)
+                            renderRules()
+                        }
+                        .setNegativeButton("Cancel", null)
+                        .show()
                 }
             })
             rulesBox.addView(row)

@@ -143,6 +143,7 @@ class AlarmActivity : Activity() {
             }
             head.addView(thumb)
             loadThumb(item.imageUrl, thumb)
+            thumb.setOnClickListener { Thumbs.showEnlarged(this, item.imageUrl) }
         }
         head.addView(TextView(this).apply {
             text = item.title + (if (item.priceLabel.isNotBlank()) "\n${item.priceLabel}" else "") +

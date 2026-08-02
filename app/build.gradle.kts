@@ -11,8 +11,8 @@ android {
         applicationId = "win.swarsel.shopservation"
         minSdk = 26
         targetSdk = 34
-        versionCode = 8
-        versionName = "0.8.0"
+        versionCode = 9
+        versionName = "0.9.0"
     }
 
     val keystorePath = System.getenv("SHOPSERVATION_KEYSTORE")

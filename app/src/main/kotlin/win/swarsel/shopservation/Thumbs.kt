@@ -1,9 +1,15 @@
 package win.swarsel.shopservation
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Color
+import android.view.Gravity
+import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.ProgressBar
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URL
@@ -28,7 +34,13 @@ object Thumbs {
         return full + "/api/v1/img?u=" + URLEncoder.encode(imageUrl, "UTF-8")
     }
 
-    fun load(activity: Activity, url: String, into: ImageView, sample: Int = 4) {
+    fun load(
+        activity: Activity,
+        url: String,
+        into: ImageView,
+        sample: Int = 4,
+        onDone: (() -> Unit)? = null,
+    ) {
         if (url.isBlank()) return
         val store = Store(activity)
         val proxied = if (needsProxy(url)) proxiedUrl(store.serverUrl, url) else null
@@ -39,11 +51,43 @@ object Thumbs {
                 if (bmp == null && proxied != null) {
                     bmp = runCatching { fetch(url, sample, "") }.getOrNull()
                 }
-                if (bmp == null) return@execute
                 if (activity.isFinishing || activity.isDestroyed) return@execute
-                activity.runOnUiThread { into.setImageBitmap(bmp) }
+                activity.runOnUiThread {
+                    if (bmp != null) into.setImageBitmap(bmp)
+                    onDone?.invoke()
+                }
             }
         }
+    }
+
+    fun showEnlarged(activity: Activity, url: String) {
+        if (url.isBlank()) return
+
+        val frame = FrameLayout(activity).apply {
+            setBackgroundColor(Color.parseColor("#111111"))
+        }
+        val spinner = ProgressBar(activity).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { gravity = Gravity.CENTER }
+        }
+        val big = ImageView(activity).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            )
+            adjustViewBounds = true
+            scaleType = ImageView.ScaleType.FIT_CENTER
+        }
+        frame.addView(big)
+        frame.addView(spinner)
+
+        val dialog = AlertDialog.Builder(activity).setView(frame).create()
+        frame.setOnClickListener { dialog.dismiss() }
+        dialog.show()
+
+        load(activity, url, big, sample = 1) { spinner.visibility = ProgressBar.GONE }
     }
 
     private fun fetch(url: String, sample: Int, token: String): Bitmap? {

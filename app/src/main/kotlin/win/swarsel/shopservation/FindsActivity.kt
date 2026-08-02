@@ -223,6 +223,7 @@ class FindsActivity : Activity() {
             }
             row.addView(thumb)
             Thumbs.load(this, item.imageUrl, thumb)
+            thumb.setOnClickListener { Thumbs.showEnlarged(this, item.imageUrl) }
         }
 
         val col = LinearLayout(this).apply {
