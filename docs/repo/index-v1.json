@@ -1,6 +1,6 @@
 {
   "repo": {
-    "timestamp": 1785641315000,
+    "timestamp": 1785676036000,
     "version": 20002,
     "name": "shopservation",
     "icon": "icon.png",
@@ -20,7 +20,7 @@
       "categories": [
         "System"
       ],
-      "suggestedVersionCode": "101",
+      "suggestedVersionCode": "102",
       "description": "Companion app for a self-hosted shopservatory instance.\n\nshopservation polls your shopservatory listing feed and sounds a loud alarm\nwhen a new find matches a rule you configure in the app. Rules match on title\nkeywords, exclusion keywords, a maximum price (per currency) and source.\n\nThe alarm plays on the alarm audio stream, so it is audible even when the\nphone is on silent or vibrate, and shows a full-screen stop screen over the\nlock screen.\n\nAll alarm logic lives in the app; the server needs no changes.\n",
       "license": "MIT",
       "name": "shopservation",
@@ -36,13 +36,13 @@
       {
         "added": 1785606114000,
         "apkName": "win.swarsel.shopservation.apk",
-        "hash": "370aec61ea466a6e2978b7012c412db6046db89d729e406937292f674844134a",
+        "hash": "b9887314defbbed2f06cc88548e4dfa3c12bb5c81a78e88cb7c679f76976f7d6",
         "hashType": "sha256",
         "minSdkVersion": 26,
         "packageName": "win.swarsel.shopservation",
         "sig": "b075eb6664c0afa75af605a9afd79463",
         "signer": "850b274ad1d8719c96eb4eee1860c0c6cd2af4eaeb1d322fe61624da8897d1bf",
-        "size": 4935522,
+        "size": 4936178,
         "targetSdkVersion": 34,
         "uses-permission": [
           [
@@ -98,8 +98,8 @@
             null
           ]
         ],
-        "versionCode": 101,
-        "versionName": "0.10.1"
+        "versionCode": 102,
+        "versionName": "0.10.2"
       }
     ]
   }

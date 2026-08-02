@@ -175,6 +175,9 @@ class Store(context: Context) {
                 put("url", d.monitor.url)
                 put("ends", d.monitor.ends)
                 put("lead", d.leadMinutes)
+                put("imageUrl", d.monitor.imageUrl)
+                put("doorzoUrl", d.monitor.doorzoUrl)
+                put("buyeeUrl", d.monitor.buyeeUrl)
             })
         }
         prefs.edit().putString("lastReminder", arr.toString()).apply()
@@ -193,7 +196,10 @@ class Store(context: Context) {
                 price = 0.0,
                 currency = "",
                 url = o.optString("url"),
+                imageUrl = o.optString("imageUrl"),
                 saleType = "auction",
+                proxyDoorzoUrl = o.optString("doorzoUrl"),
+                proxyBuyeeUrl = o.optString("buyeeUrl"),
             )
         }
     }

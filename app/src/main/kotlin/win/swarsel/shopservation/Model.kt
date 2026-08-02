@@ -12,6 +12,8 @@ data class Listing(
     val url: String,
     val imageUrl: String = "",
     val saleType: String = "",
+    val proxyDoorzoUrl: String = "",
+    val proxyBuyeeUrl: String = "",
 ) {
     val key: String get() = "$source/$externalId"
 

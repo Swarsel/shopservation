@@ -1,0 +1,78 @@
+{
+  "repo": {
+    "timestamp": 1785676036000
+  },
+  "packages": {
+    "win.swarsel.shopservation": {
+      "versions": {
+        "370aec61ea466a6e2978b7012c412db6046db89d729e406937292f674844134a": null,
+        "b9887314defbbed2f06cc88548e4dfa3c12bb5c81a78e88cb7c679f76976f7d6": {
+          "added": 1785606114000,
+          "file": {
+            "name": "/win.swarsel.shopservation.apk",
+            "sha256": "b9887314defbbed2f06cc88548e4dfa3c12bb5c81a78e88cb7c679f76976f7d6",
+            "size": 4936178
+          },
+          "manifest": {
+            "versionName": "0.10.2",
+            "versionCode": 102,
+            "usesSdk": {
+              "minSdkVersion": 26,
+              "targetSdkVersion": 34
+            },
+            "signer": {
+              "sha256": [
+                "850b274ad1d8719c96eb4eee1860c0c6cd2af4eaeb1d322fe61624da8897d1bf"
+              ]
+            },
+            "usesPermission": [
+              {
+                "name": "android.permission.INTERNET"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE"
+              },
+              {
+                "name": "android.permission.FOREGROUND_SERVICE_DATA_SYNC"
+              },
+              {
+                "name": "android.permission.POST_NOTIFICATIONS"
+              },
+              {
+                "name": "android.permission.RECEIVE_BOOT_COMPLETED"
+              },
+              {
+                "name": "android.permission.VIBRATE"
+              },
+              {
+                "name": "android.permission.WAKE_LOCK"
+              },
+              {
+                "name": "android.permission.USE_FULL_SCREEN_INTENT"
+              },
+              {
+                "name": "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+              },
+              {
+                "name": "android.permission.READ_MEDIA_AUDIO"
+              },
+              {
+                "name": "android.permission.READ_EXTERNAL_STORAGE",
+                "maxSdkVersion": 32
+              },
+              {
+                "name": "android.permission.ACCESS_NETWORK_STATE"
+              },
+              {
+                "name": "win.swarsel.shopservation.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+              }
+            ]
+          },
+          "antiFeatures": {
+            "NonFreeNet": {}
+          }
+        }
+      }
+    }
+  }
+}

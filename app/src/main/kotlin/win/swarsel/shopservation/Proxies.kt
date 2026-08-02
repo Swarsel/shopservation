@@ -18,6 +18,7 @@ object Proxies {
         doorzoMalls.containsKey(source.lowercase()) || buyeeItemPaths.containsKey(source.lowercase())
 
     fun buyeeUrl(listing: Listing): String? {
+        if (listing.proxyBuyeeUrl.isNotBlank()) return listing.proxyBuyeeUrl
         val path = buyeeItemPaths[listing.source.lowercase()] ?: return null
         val id = listing.externalId.trim()
         if (id.isEmpty()) return null
@@ -25,6 +26,7 @@ object Proxies {
     }
 
     fun doorzoUrl(listing: Listing): String? {
+        if (listing.proxyDoorzoUrl.isNotBlank()) return listing.proxyDoorzoUrl
         val mall = doorzoMalls[listing.source.lowercase()] ?: return null
         val native = nativeUrl(listing) ?: return null
         return "https://www.doorzo.com/en/mall/$mall/detail/" + hex(native)
