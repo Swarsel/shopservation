@@ -12,9 +12,10 @@ class MatcherTest {
         currency: String = "",
         source: String = "mercari",
         id: String = "m1",
+        saleType: String = "",
     ) = Listing(
         source = source, searchId = 1, externalId = id, title = title,
-        price = price, currency = currency, url = "https://x/$id", saleType = "",
+        price = price, currency = currency, url = "https://x/$id", saleType = saleType,
     )
 
     @Test
@@ -186,5 +187,50 @@ class MatcherTest {
             listing("x", source = "mercari", id = "1").key !=
                 listing("x", source = "ebay", id = "1").key
         )
+    }
+
+    @Test
+    fun `alarms skip auctions but keep buy-now listings`() {
+        val rules = listOf(Rule(id = 1, keywords = "pikachu"))
+        val buyNow = listing("pikachu card", id = "a1")
+        val auction = listing("pikachu card", id = "a2", saleType = "auction")
+
+        val hits = Matcher.selectAlarming(rules, listOf(buyNow, auction), emptySet())
+
+        assertEquals(listOf("mercari/a1"), hits.map { it.key })
+    }
+
+    @Test
+    fun `an empty saleType is treated as buy-now`() {
+        val rules = listOf(Rule(id = 1, keywords = "pikachu"))
+        val hits = Matcher.selectAlarming(rules, listOf(listing("pikachu", id = "b1")), emptySet())
+        assertEquals(1, hits.size)
+    }
+
+    @Test
+    fun `auction detection is case insensitive`() {
+        assertTrue(Matcher.isAuction(listing("x", saleType = "Auction")))
+        assertTrue(Matcher.isAuction(listing("x", saleType = "AUCTION")))
+        assertFalse(Matcher.isAuction(listing("x", saleType = "")))
+        assertFalse(Matcher.isAuction(listing("x", saleType = "buy_now")))
+    }
+
+    @Test
+    fun `auctions are still reported as rule matches outside alarming`() {
+        val rule = Rule(id = 1, keywords = "pikachu")
+        val auction = listing("pikachu card", saleType = "auction")
+
+        assertTrue(Matcher.matches(rule, auction))
+        assertEquals(rule, Matcher.firstMatch(listOf(rule), auction))
+    }
+
+    @Test
+    fun `an all-auction result set produces no alarms`() {
+        val rules = listOf(Rule(id = 1, keywords = "pikachu"))
+        val all = listOf(
+            listing("pikachu one", id = "c1", saleType = "auction"),
+            listing("pikachu two", id = "c2", saleType = "auction"),
+        )
+        assertTrue(Matcher.selectAlarming(rules, all, emptySet()).isEmpty())
     }
 }

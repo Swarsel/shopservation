@@ -32,6 +32,8 @@ object Matcher {
 
     fun firstMatch(rules: List<Rule>, listing: Listing): Rule? = rules.firstOrNull { matches(it, listing) }
 
+    fun isAuction(listing: Listing): Boolean = listing.saleType.equals("auction", ignoreCase = true)
+
     fun selectAlarming(rules: List<Rule>, listings: List<Listing>, seen: Set<String>): List<Listing> =
-        listings.filter { it.key !in seen && firstMatch(rules, it) != null }
+        listings.filter { it.key !in seen && !isAuction(it) && firstMatch(rules, it) != null }
 }
