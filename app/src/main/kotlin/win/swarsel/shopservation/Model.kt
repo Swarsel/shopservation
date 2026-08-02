@@ -43,6 +43,8 @@ data class Monitor(
     val saleType: String,
     val ends: String,
     val archived: Boolean,
+    val imageUrl: String = "",
+    val doorzoUrl: String = "",
 ) {
     fun endsAtMillis(): Long? {
         if (ends.isBlank()) return null
@@ -62,6 +64,8 @@ data class Monitor(
             saleType = o.optString("saleType"),
             ends = o.optString("ends"),
             archived = o.optBoolean("archived"),
+            imageUrl = o.optString("imageUrl"),
+            doorzoUrl = o.optString("doorzoUrl"),
         )
     }
 }

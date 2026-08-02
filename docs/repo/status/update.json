@@ -14,7 +14,7 @@
     "--pretty"
   ],
   "disabled": [],
-  "endTimestamp": 1785635384385,
+  "endTimestamp": 1785637921456,
   "failedBuilds": {},
   "jarsigner": "/nix/store/2y0qz1r84ckgmmrnfvx9bbysnyn1zb61-openjdk-17.0.20+8/bin/jarsigner",
   "keytool": "/nix/store/2y0qz1r84ckgmmrnfvx9bbysnyn1zb61-openjdk-17.0.20+8/bin/keytool",
@@ -27,6 +27,6 @@
   "noUpdateCheck": [
     "win.swarsel.shopservation"
   ],
-  "startTimestamp": 1785631781000,
+  "startTimestamp": 1785634318000,
   "subcommand": "update"
 }

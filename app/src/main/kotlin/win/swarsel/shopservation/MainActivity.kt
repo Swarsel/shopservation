@@ -121,6 +121,10 @@ class MainActivity : Activity() {
             setOnClickListener { startActivity(Intent(this@MainActivity, FindsActivity::class.java)) }
         })
         row3.addView(Button(this).apply {
+            text = "Monitored"
+            setOnClickListener { startActivity(Intent(this@MainActivity, MonitorsActivity::class.java)) }
+        })
+        row3.addView(Button(this).apply {
             text = "Recent matches"
             setOnClickListener {
                 startActivity(

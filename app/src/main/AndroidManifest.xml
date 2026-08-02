@@ -40,6 +40,12 @@
             android:parentActivityName=".MainActivity" />
 
         <activity
+            android:name=".MonitorsActivity"
+            android:exported="false"
+            android:label="Monitored"
+            android:parentActivityName=".MainActivity" />
+
+        <activity
             android:name=".AlarmActivity"
             android:exported="false"
             android:excludeFromRecents="true"
